@@ -184,9 +184,10 @@ abstract class Setting_Fields implements Fields
 		$fields = $this->merged_fields();
 
 		foreach ( $fields as $key => $value ) :
-			$input[$value['meta']] = ( isset( $_POST[$value['meta']] ) && null !== $_POST[$value['meta']] )
-										? stripslashes( trim( $_POST[$value['meta']] ) )
-										: '';
+			if ( isset( $value['meta'] ) )
+				$input[$value['meta']] = ( isset( $_POST[$value['meta']] ) && null !== $_POST[$value['meta']] )
+											? stripslashes( trim( $_POST[$value['meta']] ) )
+											: '';
 		endforeach;
 
 		add_settings_error( 'wasp-update', 'wasp', __( 'Setting Updated', 'wasp' ), 'success' );
