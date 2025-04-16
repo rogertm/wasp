@@ -1,4 +1,4 @@
-[![CodeFactor](https://www.codefactor.io/repository/github/themingisprose/wasp/badge)](https://www.codefactor.io/repository/github/themingisprose/wasp)
+[![CodeFactor](https://www.codefactor.io/repository/github/rogertm/wasp/badge)](https://www.codefactor.io/repository/github/rogertm/wasp)
 
 # WASP 🐝 &bull; Woew! Another starter plugin
 
@@ -37,7 +37,7 @@ new My_Plugin_Custom_Post_Type;
 
 ### Manual
 
-**WASP** se instala como cualquier otro plugin de WordPress, para ello debes descargar la [última versión](https://github.com/themingisprose/wasp/archive/refs/heads/main.zip), descompactar el archivo `.zip` y copiar su contenido en el directorio `wp-content/plugins/` de tu instalación de WordPress. O subirlo usando el instalador de plugins de WordPress.
+**WASP** se instala como cualquier otro plugin de WordPress, para ello debes descargar la [última versión](https://github.com/rogertm/wasp/archive/refs/heads/main.zip), descompactar el archivo `.zip` y copiar su contenido en el directorio `wp-content/plugins/` de tu instalación de WordPress. O subirlo usando el instalador de plugins de WordPress.
 
 ### Instalar vía Git
 
@@ -45,7 +45,7 @@ Puedes clonar este repositorio directamente desde GitHub.
 
 ```bash
 $ cd /path/to/your/wordpress-site/wp-content/plugins/
-$ git clone git@github.com:themingisprose/wasp.git
+$ git clone git@github.com:rogertm/wasp.git
 ```
 
 ## Modo de uso
@@ -79,7 +79,7 @@ Puedes desarrollar tu propio plugin y heredar a todas las funcionalidades que br
 /**
  * Plugin Name: WASP Child 🐝
  * Description: Wow! Another starter "Child" plugin
- * Plugin URI: https://github.com/themingisprose/wasp
+ * Plugin URI: https://github.com/rogertm/wasp
  * Author: RogerTM
  * Author URI: https://rogertm.com
  * Version: 1.0.0
@@ -102,10 +102,10 @@ else
 
 ## Documentación
 
-Puedes ver todos los detalles referentes al uso de **WASP** en la Wiki de este mismo repositorio 👉 https://github.com/themingisprose/wasp/wiki
+Puedes ver todos los detalles referentes al uso de **WASP** en la Wiki de este mismo repositorio 👉 https://github.com/rogertm/wasp/wiki
 
 ## Licencia
 
-**WASP** es un programa de código abierto y se distribuye bajo licencia [GNU General Public License v2.0](https://github.com/themingisprose/wasp/blob/main/LICENSE).
+**WASP** es un programa de código abierto y se distribuye bajo licencia [GNU General Public License v2.0](https://github.com/rogertm/wasp/blob/main/LICENSE).
 
 _Happy coding!_
