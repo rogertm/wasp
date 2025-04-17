@@ -354,19 +354,28 @@ class HTML
 		$option = ( ! is_array( $args['multiple'] ) )
 					? __( 'No data available', 'wasp' )
 					: __( '&mdash; Select an option &mdash;', 'wasp' );
+
+		$name = ( isset( $args['attr']['multiple'] ) )
+					? $args['meta'] .'[]'
+					: $args['meta'];
 	?>
 		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
 		<select
 			id="<?php echo $args['meta'] ?>"
-			name="<?php echo $args['meta'] ?>"
+			name="<?php echo $name ?>"
 			<?php static::attr( $args['attr'] ) ?>
 		>
 			<option value=""><?php echo $option ?></option>
 			<?php
 			if ( is_array( $args['multiple'] ) ) :
 				foreach ( $args['multiple'] as $k => $v ) :
+					if ( is_array( $value ) ) :
+						$selected = ( in_array( $k, $value ) ) ? 'selected' : null;
+					else :
+						$selected = selected( $k, $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ), false );
+					endif;
 			?>
-			<option value="<?php echo $k ?>" <?php selected( $k, $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ) ?>><?php echo $v ?></option>
+			<option value="<?php echo $k ?>" <?php echo $selected ?>><?php echo $v ?></option>
 			<?php
 				endforeach;
 			endif;
@@ -408,6 +417,9 @@ class HTML
 	{
 		if ( ! is_array( $attr ) )
 			return;
+
+		unset( $attr['id'] );
+		unset( $attr['name'] );
 
 		foreach ( $attr as $k => $v ) :
 			echo $k .'="'. $v .'" ';

@@ -186,7 +186,9 @@ abstract class Setting_Fields implements Fields
 		foreach ( $fields as $key => $value ) :
 			if ( isset( $value['meta'] ) )
 				$input[$value['meta']] = ( isset( $_POST[$value['meta']] ) && null !== $_POST[$value['meta']] )
-											? stripslashes( trim( $_POST[$value['meta']] ) )
+											? ( is_array( $_POST[$value['meta']] ) )
+												? $_POST[$value['meta']]
+												: stripslashes( trim( $_POST[$value['meta']] ) )
 											: '';
 		endforeach;
 
