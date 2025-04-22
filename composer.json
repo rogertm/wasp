@@ -7,7 +7,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"WASP_CLI\\": "cli/"
+			"WaspCli\\": "cli/"
 		}
 	},
 	"bin": ["cli/wasp"]
