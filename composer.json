@@ -1,0 +1,14 @@
+{
+	"name": "wasp/wasp-cli",
+	"description": "WASP cli tool",
+	"require": {
+		"php": ">=7.2",
+		"symfony/console": "^5.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"WASP_CLI\\": "cli/"
+		}
+	},
+	"bin": ["cli/wasp"]
+}

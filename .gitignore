@@ -1,5 +1,13 @@
-# Created by https://www.toptal.com/developers/gitignore/api/sublimetext
-# Edit at https://www.toptal.com/developers/gitignore?templates=sublimetext
+# Created by https://www.toptal.com/developers/gitignore/api/composer,sublimetext
+# Edit at https://www.toptal.com/developers/gitignore?templates=composer,sublimetext
+
+### Composer ###
+composer.phar
+/vendor/
+
+# Commit your application's lock file https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control
+# You may choose to ignore a library lock file http://getcomposer.org/doc/02-libraries.md#lock-file
+# composer.lock
 
 ### SublimeText ###
 # Cache files for Sublime Text
@@ -16,6 +24,7 @@
 
 # SFTP configuration file
 sftp-config.json
+sftp-config-alt*.json
 
 # Package control specific files
 Package Control.last-run
@@ -33,12 +42,4 @@ bh_unicode_properties.cache
 # https://packagecontrol.io/packages/sublime-github
 GitHub.sublime-settings
 
-# End of https://www.toptal.com/developers/gitignore/api/sublimetext
-
-# ignore node dependency directories
-node_modules/
-
-# ignore log files and databases
-*.log
-*.sql
-*.sqlite
+# End of https://www.toptal.com/developers/gitignore/api/composer,sublimetext
