@@ -1,0 +1,6 @@
+{
+    "namespace": "WASP",
+    "slug": "wasp",
+    "function_prefix": "wasp_",
+    "text_domain": "wasp"
+}
