@@ -4,7 +4,9 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\Console\Application;
 use WaspCli\Command\RenameProjectCommand;
+use WaspCli\Command\CreatePostTypeCommand;
 
 $app = new Application( 'WASP CLI', '1.0.0' );
 $app->add( new RenameProjectCommand() );
+$app->add( new CreatePostTypeCommand() );
 $app->run();
