@@ -48,3 +48,4 @@ endif;
  * Include files
  */
 require plugin_dir_path( __FILE__ ) .'/autoloader.php';
+require plugin_dir_path( __FILE__ ) .'/inc/index.php';

@@ -78,6 +78,21 @@ PHP;
 
 		file_put_contents($filePath, $content);
 		$output->writeln("Created CPT class file: $filePath");
+
+		$loaderFile = $baseDir . '/inc/classes.php';
+		$instanceLine = sprintf(
+		    "new %s\\Post_Type\\%s;\n",
+		    $namespaceRoot,
+		    $className
+		);
+
+		if (file_exists($loaderFile) && is_writable($loaderFile)) {
+		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+		    $output->writeln("Appended instance to: $loaderFile");
+		} else {
+		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
+		}
+
 		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 	}
