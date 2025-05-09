@@ -6,7 +6,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class CreateTaxonomyCommand extends Command
+class CreateTaxonomyCommand extends AbstractGeneratorCommand
 {
 	protected static $defaultName = 'create:taxonomy';
 
@@ -20,22 +20,16 @@ class CreateTaxonomyCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output): int
 	{
-		$baseDir    = realpath(__DIR__ . '/../../');
-		$configPath = $baseDir . '/cli/config.json';
-
-		$config        = json_decode(file_get_contents($configPath), true);
-		$namespaceRoot = $config['namespace'];
-		$slugRoot      = $config['slug'];
-		$textDomain    = $config['text_domain'];
+		$this->initialize($input, $output);
 
 		$name        = $input->getArgument('name');
 		$object_type = $input->getArgument('object_type');
 		$slug        = $this->slugify($name);
 		$classSuffix = str_replace('-', '_', ucwords($slug, '-'));
 		$className   = 'Taxonomy_' . $classSuffix;
-		$fileName    = "class-{$slugRoot}-taxonomy-{$slug}.php";
+		$fileName    = "class-{$this->slugRoot}-taxonomy-{$slug}.php";
 
-		$targetDir = $baseDir . '/classes/taxonomy';
+		$targetDir = $this->baseDir . '/classes/taxonomy';
 		if (!is_dir($targetDir)) {
 			mkdir($targetDir, 0755, true);
 		}
@@ -47,8 +41,8 @@ class CreateTaxonomyCommand extends Command
 			return Command::FAILURE;
 		}
 
-		$namespaceDecl = $namespaceRoot . '\\Taxonomy';
-		$useDecl       = $namespaceRoot . '\\Taxonomy\\Taxonomy';
+		$namespaceDecl = $this->namespaceRoot . '\\Taxonomy';
+		$useDecl       = $this->namespaceRoot . '\\Taxonomy\\Taxonomy';
 		$content       = <<<PHP
 <?php
 namespace {$namespaceDecl};
@@ -62,14 +56,14 @@ class {$className} extends Taxonomy
 		parent::__construct();
 
 		// Taxonomy slug
-		\$this->taxonomy = '{$slugRoot}-{$slug}';
+		\$this->taxonomy = '{$this->slugRoot}-{$slug}';
 
 		// Object type
 		\$this->object_type = '{$object_type}';
 
 		// Taxonomy labels
 		\$this->labels = array(
-			'name'		=> _x( '{$name}', 'Taxonomy general name', '{$textDomain}' )
+			'name'		=> _x( '{$name}', 'Taxonomy general name', '{$this->textDomain}' )
 		);
 
 		// Taxonomy arguments
@@ -84,10 +78,10 @@ PHP;
 		file_put_contents($filePath, $content);
 		$output->writeln("Created Taxonomy class file: $filePath");
 
-		$loaderFile = $baseDir . '/inc/classes.php';
+		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Taxonomy\\%s;\n",
-		    $namespaceRoot,
+		    $this->namespaceRoot,
 		    $className
 		);
 
@@ -100,11 +94,5 @@ PHP;
 
 		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
-	}
-
-	private function slugify(string $text): string
-	{
-		$text = preg_replace('/[^\p{L}\p{Nd}]+/u', '-', $text);
-		return strtolower(trim($text, '-'));
 	}
 }

@@ -6,7 +6,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class CreatePostTypeCommand extends Command
+class CreatePostTypeCommand extends AbstractGeneratorCommand
 {
 	protected static $defaultName = 'create:post_type';
 
@@ -19,21 +19,15 @@ class CreatePostTypeCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output): int
 	{
-		$baseDir    = realpath(__DIR__ . '/../../');
-		$configPath = $baseDir . '/cli/config.json';
-
-		$config        = json_decode(file_get_contents($configPath), true);
-		$namespaceRoot = $config['namespace'];
-		$slugRoot      = $config['slug'];
-		$textDomain    = $config['text_domain'];
+		$this->initialize($input, $output);
 
 		$name        = $input->getArgument('name');
 		$slug        = $this->slugify($name);
 		$classSuffix = str_replace('-', '_', ucwords($slug, '-'));
 		$className   = 'Post_Type_' . $classSuffix;
-		$fileName    = "class-{$slugRoot}-post-type-{$slug}.php";
+		$fileName    = "class-{$this->slugRoot}-post-type-{$slug}.php";
 
-		$targetDir = $baseDir . '/classes/post-type';
+		$targetDir = $this->baseDir . '/classes/post-type';
 		if (!is_dir($targetDir)) {
 			mkdir($targetDir, 0755, true);
 		}
@@ -45,8 +39,8 @@ class CreatePostTypeCommand extends Command
 			return Command::FAILURE;
 		}
 
-		$namespaceDecl = $namespaceRoot . '\\Post_Type';
-		$useDecl       = $namespaceRoot . '\\Posts\\Post_Type';
+		$namespaceDecl = $this->namespaceRoot . '\\Post_Type';
+		$useDecl       = $this->namespaceRoot . '\\Posts\\Post_Type';
 		$content       = <<<PHP
 <?php
 namespace {$namespaceDecl};
@@ -60,11 +54,11 @@ class {$className} extends Post_Type
 		parent::__construct();
 
 		// CPT slug
-		\$this->post_type = '{$slugRoot}-{$slug}';
+		\$this->post_type = '{$this->slugRoot}-{$slug}';
 
 		// CPT labels
 		\$this->labels = array(
-			'name'		=> _x( '{$name}', 'Post type general name', '{$textDomain}' )
+			'name'		=> _x( '{$name}', 'Post type general name', '{$this->textDomain}' )
 		);
 
 		// CPT arguments
@@ -79,10 +73,10 @@ PHP;
 		file_put_contents($filePath, $content);
 		$output->writeln("Created CPT class file: $filePath");
 
-		$loaderFile = $baseDir . '/inc/classes.php';
+		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Post_Type\\%s;\n",
-		    $namespaceRoot,
+		    $this->namespaceRoot,
 		    $className
 		);
 
@@ -95,11 +89,5 @@ PHP;
 
 		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
-	}
-
-	private function slugify(string $text): string
-	{
-		$text = preg_replace('/[^\p{L}\p{Nd}]+/u', '-', $text);
-		return strtolower(trim($text, '-'));
 	}
 }
