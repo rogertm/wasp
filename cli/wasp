@@ -7,10 +7,12 @@ use WaspCli\Command\RenameProjectCommand;
 use WaspCli\Command\CreatePostTypeCommand;
 use WaspCli\Command\CreateTaxonomyCommand;
 use WaspCli\Command\CreateMetaBoxCommand;
+use WaspCli\Command\CreateTermMetaCommand;
 
 $app = new Application( 'WASP CLI', '1.0.0' );
 $app->add( new RenameProjectCommand() );
 $app->add( new CreatePostTypeCommand() );
 $app->add( new CreateTaxonomyCommand() );
 $app->add( new CreateMetaBoxCommand() );
+$app->add( new CreateTermMetaCommand() );
 $app->run();

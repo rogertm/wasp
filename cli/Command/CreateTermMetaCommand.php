@@ -6,16 +6,16 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class CreateMetaBoxCommand extends AbstractGeneratorCommand
+class CreateTermMetaCommand extends AbstractGeneratorCommand
 {
-	protected static $defaultName = 'create:meta_box';
+	protected static $defaultName = 'create:term_meta';
 
 	protected function configure(): void
 	{
 		$this
-			->setDescription('Creates a new Meta Box class file using project config')
-			->addArgument('name', InputArgument::REQUIRED, 'Meta Box name (e.g., My custom fields)')
-			->addArgument('screen', InputArgument::REQUIRED, 'The screen or screens on which to show the box, such as a post type. (e.g., wasp-book)');
+			->setDescription('Creates a new Term Meta class file using project config')
+			->addArgument('name', InputArgument::REQUIRED, 'Term Meta name (e.g., My custom fields)')
+			->addArgument('taxonomy', InputArgument::REQUIRED, 'The taxonomy slug. (e.g., wasp-genre)');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int
@@ -23,13 +23,13 @@ class CreateMetaBoxCommand extends AbstractGeneratorCommand
 		$this->initialize($input, $output);
 
 		$name			= $input->getArgument('name');
-		$screen			= $input->getArgument('screen');
+		$taxonomy		= $input->getArgument('taxonomy');
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
-		$className		= 'Meta_Box_' . $classSuffix;
-		$fileName		= "class-{$this->slugRoot}-meta-box-{$slug}.php";
+		$className		= 'Term_Meta_' . $classSuffix;
+		$fileName		= "class-{$this->slugRoot}-term-meta-{$slug}.php";
 
-		$targetDir = $this->baseDir . '/classes/meta-box';
+		$targetDir = $this->baseDir . '/classes/term-meta';
 		if (!is_dir($targetDir)) {
 			mkdir($targetDir, 0755, true);
 		}
@@ -41,8 +41,8 @@ class CreateMetaBoxCommand extends AbstractGeneratorCommand
 			return Command::FAILURE;
 		}
 
-		$namespaceDecl	= $this->namespaceRoot . '\\Meta_Box';
-		$useDecl		= $this->namespaceRoot . '\\Meta_Box\\Meta_Box';
+		$namespaceDecl	= $this->namespaceRoot . '\\Terms';
+		$useDecl		= $this->namespaceRoot . '\\Terms\\Term_Meta';
 		$filter			= str_replace('-', '_', $slug);
 		$content		= <<<PHP
 <?php
@@ -50,17 +50,12 @@ namespace {$namespaceDecl};
 
 use {$useDecl};
 
-class {$className} extends Meta_Box
+class {$className} extends Term_Meta
 {
 	public function __construct()
 	{
 		parent::__construct();
-		\$this->id				= '{$slug}-custom-field';
-		\$this->title			= __( '{$name}', '{$this->textDomain}' );
-		\$this->screen			= '{$screen}';
-		\$this->context			= 'advanced';
-		\$this->priority		= 'default';
-		\$this->callback_args	= null;
+		\$this->taxonomy	= '{$taxonomy}';
 	}
 
 	function fields()
@@ -69,18 +64,18 @@ class {$className} extends Meta_Box
 			// Your fields goes here...
 		);
 
-		return apply_filters( '{$this->slugRoot}_{$filter}_custom_fields', \$fields );
+		return apply_filters( '{$this->slugRoot}_{$filter}_term_meta_fields', \$fields );
 	}
 }
 
 PHP;
 
 		file_put_contents($filePath, $content);
-		$output->writeln("Created Meta Box class file: $filePath");
+		$output->writeln("Created Term Meta class file: $filePath");
 
 		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
-		    "new %s\\Meta_Box\\%s;\n",
+		    "new %s\\Terms\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
