@@ -10,6 +10,7 @@ use WaspCli\Command\CreateMetaBoxCommand;
 use WaspCli\Command\CreateTermMetaCommand;
 use WaspCli\Command\CreateAdminPageCommand;
 use WaspCli\Command\CreateAdminSubPageCommand;
+use WaspCli\Command\CreateSettingFieldsCommand;
 
 $app = new Application( 'WASP CLI', '1.0.0' );
 $app->add( new RenameProjectCommand() );
@@ -19,4 +20,5 @@ $app->add( new CreateMetaBoxCommand() );
 $app->add( new CreateTermMetaCommand() );
 $app->add( new CreateAdminPageCommand() );
 $app->add( new CreateAdminSubPageCommand() );
+$app->add( new CreateSettingFieldsCommand() );
 $app->run();
