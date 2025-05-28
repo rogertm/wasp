@@ -29,19 +29,12 @@ class CreateSettingFieldsCommand extends AbstractGeneratorCommand
 		$slug			= $this->slugify($section);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Setting_Fields_' . $classSuffix;
+		$targetDir		= '/classes/setting-fields';
 		$fileName		= "class-{$this->slugRoot}-setting-fields-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/setting-fields';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl	= $this->namespaceRoot . '\\Setting_Fields';
 		$useDecl		= $this->namespaceRoot . '\\Setting_Fields\\Setting_Fields';
@@ -79,24 +72,14 @@ class {$className} extends Setting_Fields
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created Setting Fields class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Setting_Fields\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 
 	}

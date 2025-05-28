@@ -27,19 +27,12 @@ class CreateTermMetaCommand extends AbstractGeneratorCommand
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Term_Meta_' . $classSuffix;
+		$targetDir		= '/classes/term-meta';
 		$fileName		= "class-{$this->slugRoot}-term-meta-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/term-meta';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl	= $this->namespaceRoot . '\\Terms';
 		$useDecl		= $this->namespaceRoot . '\\Terms\\Term_Meta';
@@ -70,24 +63,14 @@ class {$className} extends Term_Meta
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created Term Meta class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Terms\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 
 	}

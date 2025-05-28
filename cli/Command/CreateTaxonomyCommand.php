@@ -22,24 +22,17 @@ class CreateTaxonomyCommand extends AbstractGeneratorCommand
 	{
 		$this->initialize($input, $output);
 
-		$name        = $input->getArgument('name');
-		$object_type = $input->getArgument('object_type');
-		$slug        = $this->slugify($name);
-		$classSuffix = str_replace('-', '_', ucwords($slug, '-'));
-		$className   = 'Taxonomy_' . $classSuffix;
-		$fileName    = "class-{$this->slugRoot}-taxonomy-{$slug}.php";
+		$name			= $input->getArgument('name');
+		$object_type	= $input->getArgument('object_type');
+		$slug			= $this->slugify($name);
+		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
+		$className		= 'Taxonomy_' . $classSuffix;
+		$targetDir		= '/classes/taxonomy';
+		$fileName		= "class-{$this->slugRoot}-taxonomy-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/taxonomy';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl = $this->namespaceRoot . '\\Taxonomy';
 		$useDecl       = $this->namespaceRoot . '\\Taxonomy\\Taxonomy';
@@ -75,24 +68,14 @@ class {$className} extends Taxonomy
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created Taxonomy class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Taxonomy\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 	}
 }

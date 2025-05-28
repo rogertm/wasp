@@ -21,23 +21,16 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
 	{
 		$this->initialize($input, $output);
 
-		$name        = $input->getArgument('name');
-		$slug        = $this->slugify($name);
-		$classSuffix = str_replace('-', '_', ucwords($slug, '-'));
-		$className   = 'Post_Type_' . $classSuffix;
-		$fileName    = "class-{$this->slugRoot}-post-type-{$slug}.php";
+		$name			= $input->getArgument('name');
+		$slug			= $this->slugify($name);
+		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
+		$className		= 'Post_Type_' . $classSuffix;
+		$targetDir		= '/classes/post-type';
+		$fileName		= "class-{$this->slugRoot}-post-type-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/post-type';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl = $this->namespaceRoot . '\\Post_Type';
 		$useDecl       = $this->namespaceRoot . '\\Posts\\Post_Type';
@@ -70,24 +63,14 @@ class {$className} extends Post_Type
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created CPT class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Post_Type\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 	}
 }

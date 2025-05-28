@@ -27,19 +27,12 @@ class CreateMetaBoxCommand extends AbstractGeneratorCommand
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Meta_Box_' . $classSuffix;
+		$targetDir		= '/classes/meta-box';
 		$fileName		= "class-{$this->slugRoot}-meta-box-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/meta-box';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl	= $this->namespaceRoot . '\\Meta_Box';
 		$useDecl		= $this->namespaceRoot . '\\Meta_Box\\Meta_Box';
@@ -75,24 +68,14 @@ class {$className} extends Meta_Box
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created Meta Box class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Meta_Box\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 
 	}

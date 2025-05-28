@@ -25,19 +25,12 @@ class CreateUserMetaCommand extends AbstractGeneratorCommand
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'User_Meta_' . $classSuffix;
+		$targetDir 		= '/classes/user-meta';
 		$fileName		= "class-{$this->slugRoot}-user-meta-{$slug}.php";
+		$filePath 		= $this->file($targetDir, $fileName, $output);
 
-		$targetDir = $this->baseDir . '/classes/user-meta';
-		if (!is_dir($targetDir)) {
-			mkdir($targetDir, 0755, true);
-		}
-		$filePath = $targetDir . '/' . $fileName;
-
-		// Check if file already exists to avoid overwriting
-		if (file_exists($filePath)) {
-			$output->writeln("<error>File already exists: $filePath</error>");
+		if (false === $filePath)
 			return Command::FAILURE;
-		}
 
 		$namespaceDecl	= $this->namespaceRoot . '\\Users';
 		$useDecl		= $this->namespaceRoot . '\\Users\\User_Meta';
@@ -63,24 +56,14 @@ class {$className} extends User_Meta
 
 PHP;
 
-		file_put_contents($filePath, $content);
-		$output->writeln("Created User Meta class file: $filePath");
-
-		$loaderFile = $this->baseDir . '/inc/classes.php';
 		$instanceLine = sprintf(
 		    "new %s\\Users\\%s;\n",
 		    $this->namespaceRoot,
 		    $className
 		);
 
-		if (file_exists($loaderFile) && is_writable($loaderFile)) {
-		    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
-		    $output->writeln("Appended instance to: $loaderFile");
-		} else {
-		    $output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
-		}
+		$this->write( $filePath, $content, $instanceLine, $output );
 
-		$output->writeln('<info>Done!</info>');
 		return Command::SUCCESS;
 
 	}

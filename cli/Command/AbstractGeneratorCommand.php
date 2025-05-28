@@ -2,12 +2,8 @@
 namespace WaspCli\Command;
 
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use RegexIterator;
 
 abstract class AbstractGeneratorCommand extends Command
 {
@@ -52,5 +48,39 @@ abstract class AbstractGeneratorCommand extends Command
 	{
 		$text = preg_replace('/[^\p{L}\p{Nd}]+/u', '-', $text);
 		return strtolower(trim($text, '-'));
+	}
+
+	protected function file( $dir, $fileName, $output )
+	{
+		$targetDir = $this->baseDir . $dir;
+		if (!is_dir($targetDir)) {
+			mkdir($targetDir, 0755, true);
+		}
+		$filePath = $targetDir . '/' . $fileName;
+
+		// Check if file already exists to avoid overwriting
+		if (file_exists($filePath)) {
+			$output->writeln("<error>File already exists: $filePath</error>");
+			return false;
+		} else {
+			return $filePath;
+		}
+	}
+
+	protected function write( $filePath, $content, $instanceLine, $output )
+	{
+		file_put_contents($filePath, $content);
+		$output->writeln("Created User Meta class file: $filePath");
+
+		$loaderFile = $this->baseDir . '/inc/classes.php';
+
+		if (file_exists($loaderFile) && is_writable($loaderFile)) {
+			file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+			$output->writeln("Appended instance to: $loaderFile");
+		} else {
+			$output->writeln("<comment>Warning: Could not write to $loaderFile</comment>");
+		}
+
+		$output->writeln('<info>Done!</info>');
 	}
 }

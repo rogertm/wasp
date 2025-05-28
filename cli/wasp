@@ -3,15 +3,17 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use Symfony\Component\Console\Application;
-use WaspCli\Command\RenameProjectCommand;
-use WaspCli\Command\CreatePostTypeCommand;
-use WaspCli\Command\CreateTaxonomyCommand;
-use WaspCli\Command\CreateMetaBoxCommand;
-use WaspCli\Command\CreateTermMetaCommand;
-use WaspCli\Command\CreateAdminPageCommand;
-use WaspCli\Command\CreateAdminSubPageCommand;
-use WaspCli\Command\CreateSettingFieldsCommand;
-use WaspCli\Command\CreateUserMetaCommand;
+use WaspCli\Command\{
+	RenameProjectCommand,
+	CreatePostTypeCommand,
+	CreateTaxonomyCommand,
+	CreateMetaBoxCommand,
+	CreateTermMetaCommand,
+	CreateAdminPageCommand,
+	CreateAdminSubPageCommand,
+	CreateSettingFieldsCommand,
+	CreateUserMetaCommand,
+};
 
 $app = new Application( 'WASP CLI', '1.0.0' );
 $app->add( new RenameProjectCommand() );
