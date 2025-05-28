@@ -9,14 +9,14 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class RenameProjectCommand extends Command
+class ProjectRenameCommand extends Command
 {
-    protected static $defaultName = 'rename_project';
+    protected static $defaultName = 'project:rename';
 
     protected function configure(): void
     {
         $this
-            ->setDescription('Renames strings and files in My Project plugin using existing config')
+            ->setDescription('Renames strings and files in this plugin using existing config')
             ->addArgument('project_name', InputArgument::REQUIRED, 'New project name (e.g., My Custom Plugin)');
     }
 
@@ -34,7 +34,7 @@ class RenameProjectCommand extends Command
             $oldPrefix     = $config['function_prefix'];
             $oldTextDomain = $config['text_domain'];
         } else {
-            $oldNamespace  = 'My Project';
+            $oldNamespace  = 'WASP';
             $searchSlug    = 'wasp';
             $oldPrefix     = 'wasp_';
             $oldTextDomain = 'wasp';
