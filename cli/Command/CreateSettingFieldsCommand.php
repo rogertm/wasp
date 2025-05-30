@@ -77,8 +77,9 @@ PHP;
 		    $this->namespaceRoot,
 		    $className
 		);
+		$label = 'Setting Fields';
 
-		$this->write( $filePath, $content, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output );
 
 		return Command::SUCCESS;
 

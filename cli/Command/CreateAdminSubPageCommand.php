@@ -66,8 +66,9 @@ PHP;
 		    $this->namespaceRoot,
 		    $className
 		);
+		$label = 'Admin Subpage';
 
-		$this->write( $filePath, $content, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output );
 
 		return Command::SUCCESS;
 	}

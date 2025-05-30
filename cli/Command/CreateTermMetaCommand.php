@@ -68,8 +68,9 @@ PHP;
 		    $this->namespaceRoot,
 		    $className
 		);
+		$label = 'Term Meta';
 
-		$this->write( $filePath, $content, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output );
 
 		return Command::SUCCESS;
 

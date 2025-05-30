@@ -67,10 +67,10 @@ abstract class AbstractGeneratorCommand extends Command
 		}
 	}
 
-	protected function write( $filePath, $content, $instanceLine, $output )
+	protected function write( $filePath, $content, $label, $instanceLine, $output )
 	{
 		file_put_contents($filePath, $content);
-		$output->writeln("Created User Meta class file: $filePath");
+		$output->writeln("Created $label class file: $filePath");
 
 		$loaderFile = $this->baseDir . '/inc/classes.php';
 

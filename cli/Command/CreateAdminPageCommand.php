@@ -64,8 +64,9 @@ PHP;
 		    $this->namespaceRoot,
 		    $className
 		);
+		$label = 'Admin Page';
 
-		$this->write( $filePath, $content, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output );
 
 		return Command::SUCCESS;
 	}

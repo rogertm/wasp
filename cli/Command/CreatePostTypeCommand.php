@@ -25,7 +25,7 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Post_Type_' . $classSuffix;
-		$targetDir		= '/classes/post-type';
+		$targetDir		=  '/classes/post-type';
 		$fileName		= "class-{$this->slugRoot}-post-type-{$slug}.php";
 		$filePath 		= $this->file($targetDir, $fileName, $output);
 
@@ -68,8 +68,9 @@ PHP;
 		    $this->namespaceRoot,
 		    $className
 		);
+		$label = 'Post Type';
 
-		$this->write( $filePath, $content, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output );
 
 		return Command::SUCCESS;
 	}
