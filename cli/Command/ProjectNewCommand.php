@@ -1,117 +1,254 @@
 <?php
 namespace WaspCli\Command;
 
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 class ProjectNewCommand extends AbstractGeneratorCommand
 {
-	protected static $defaultName = 'project:new';
+    protected static $defaultName = 'project:new';
 
-	protected function configure(): void
-	{
-		$this
-			->setDescription('Creates a new child plugin scaffold that depends on WASP')
-			->addArgument('name', InputArgument::REQUIRED, 'Project name (e.g., WASP Child)');
-	}
+    protected function configure(): void
+    {
+        $this
+            ->setDescription('Creates a new "child" plugin that inherits from WASP')
+            ->addArgument('name', InputArgument::REQUIRED, 'Name of the new plugin (e.g.: "WASP Child")')
+            ->addOption(
+                'dry-run',
+                null,
+                InputOption::VALUE_NONE,
+                'If specified, only simulates creation without writing files.'
+            );
+    }
 
-	protected function execute(InputInterface $input, OutputInterface $output): int
-	{
-		$name = $input->getArgument('name');
-		$slug = $this->slugify($name);
-		$dirName = $slug;
-		$pluginDir = $this->baseDir . '/../' . $dirName;
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        // SymfonyStyle for logging
+        $this->io->title('🔌 Creating new “child” plugin');
 
-		if (is_dir($pluginDir)) {
-			$output->writeln("<error>Plugin directory already exists: $pluginDir</error>");
-			return Command::FAILURE;
-		}
-		mkdir($pluginDir, 0755, true);
+        $dryRun = (bool) $input->getOption('dry-run');
+        if ($dryRun) {
+            $this->io->warning('⚡ DRY-RUN mode enabled: no files or folders will be created.');
+        }
 
-		// Create subdirectories and empty index.php
-		$classesDir = array(
-			'classes/admin-page',
-			'classes/meta-box',
-			'classes/post-type',
-			'classes/setting-fields',
-			'classes/taxonomy',
-			'classes/term-meta',
-			'classes/user-meta',
-		);
-		foreach ($classesDir as $sub) {
-			$dir = $pluginDir . '/' . $sub;
-			mkdir($dir, 0755, true);
-			// create empty index.php
-			file_put_contents($dir . '/index.php', "<?php\n// Silence is golden\n");
-		}
+        // Initialize inherited properties
+        parent::initialize($input, $output);
 
-		$incDir =  $pluginDir .'/inc';
-		mkdir($incDir, 0755);
-		file_put_contents($incDir . '/index.php', "<?php\n// Silence is golden\nrequire plugin_dir_path( __FILE__ ) .'/classes.php';\n");
-		file_put_contents($incDir . '/classes.php', "<?php\n// Instantiate your classes here\n");
+        // 1) Plugin name, slug and directory
+        $name      = $input->getArgument('name');
+        $slug      = $this->slugify($name);
+        $pluginDir = $this->baseDir . '/../' . $slug; // plugins/{slug}
 
-		$autoloader = $pluginDir .'/autoloader.php';
-		$content 	= <<<PHP
-<?php
-/**
- * Class Autoloader 101
- */
-spl_autoload_register( function( \$class ){
-	\$directories = glob( plugin_dir_path( __FILE__ ) .'classes/*', GLOB_ONLYDIR );
+        $this->io->section('1) Preparing basic data');
+        $this->io->text([
+            "Plugin name:        $name",
+            "Slug (folder name): $slug",
+            "Destination folder: $pluginDir",
+        ]);
 
-	\$parts = explode( '\\\', \$class );
-	\$class_name = end( \$parts );
+        // 2) Check that it doesn't already exist
+        if (is_dir($pluginDir)) {
+            $this->io->error("💣 The plugin directory already exists: $pluginDir");
+            return Command::FAILURE;
+        }
 
-	foreach ( \$directories as \$dir ) :
-		\$file = \$dir .'/class-{$slug}-'. str_replace( '_', '-', strtolower( \$class_name ) ) .'.php';
+        // 3) Create main folder (or simulate)
+        if (! $dryRun) {
+            try {
+                $this->filesystem->mkdir($pluginDir, 0755);
+                $this->io->text("✔ Folder created: $pluginDir");
+            } catch (IOExceptionInterface $e) {
+                $this->io->error("Error creating folder $pluginDir: " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ mkdir $pluginDir");
+        }
 
-		if ( file_exists( \$file ) ) :
-			require_once \$file;
-			break;
-		endif;
-	endforeach;
-} );
+        // 4) Define “classic” subfolders of a WASP-child plugin:
+        //     We use the same “classes” structure from WASP,
+        //     plus an /inc folder, and generate the corresponding stubs.
+        $this->io->section('2) Creating folder and file structure');
 
-PHP;
-		file_put_contents($autoloader, $content);
+        // 2.1) Recreate the “classes” structure from the base WASP plugin
+        $waspPluginDir = $this->baseDir . '/../' . $this->slugRoot;
+        if (! is_dir($waspPluginDir)) {
+            $this->io->error("WASP plugin not found at: $waspPluginDir");
+            return Command::FAILURE;
+        }
 
-		$mainFile = $pluginDir . '/'. $slug .'.php';
-		$textDomain = $slug;
-		$header = <<<PHP
-<?php
-/**
- * Plugin Name: {$name}
- * Description: Wow! Another starter "Child" plugin
- * Plugin URI: https://github.com/rogertm/wasp
- * Author: RogerTM
- * Author URI: https://rogertm.com
- * Version: 1.0.0
- * License: GPL2
- * Text Domain: {$textDomain}
- * Domain Path: /languages
- */
+        // 2.1.a) Find all subfolders inside WASP’s classes/ and replicate them
+        $finder = new Finder();
+        $finder
+            ->directories()
+            ->ignoreDotFiles(true)
+            ->ignoreVCS(true)
+            ->in($waspPluginDir . '/classes')
+            ->exclude(['vendor', 'node_modules', '.git', 'helpers', 'interfaces']);
 
-// If this file is called directly, abort.
-if ( ! defined( 'WPINC' ) ) {
-	die;
-}
+        foreach ($finder as $dir) {
+            $relativePath = $dir->getRelativePathname();
+            $newDir       = $pluginDir . '/classes/' . $relativePath;
 
-if ( file_exists( WP_PLUGIN_DIR . '/{$this->slugRoot}/{$this->slugRoot}.php' ) ) {
-	require WP_PLUGIN_DIR . '/{$this->slugRoot}/{$this->slugRoot}.php';
-	require plugin_dir_path( __FILE__ ) .'/autoloader.php';
-	require plugin_dir_path( __FILE__ ) .'/inc/index.php';
-} else {
-	wp_die( __( 'This plugin requires WASP', '{$textDomain}' ), __( 'Bum! 💣', '{$textDomain}' ) );
-}
+            if (! $dryRun) {
+                try {
+                    $this->filesystem->mkdir($newDir, 0755);
+                    $this->io->text("✔ Folder: $newDir");
+                } catch (IOExceptionInterface $e) {
+                    $this->io->error("Error creating $newDir: " . $e->getMessage());
+                    return Command::FAILURE;
+                }
+            } else {
+                $this->io->text("DRY-RUN ▶ mkdir $newDir");
+            }
 
-/** Your code goes here 😎 */
-PHP;
-		file_put_contents($mainFile, $header);
-		$output->writeln("Created plugin scaffold: $mainFile");
-		$output->writeln('<info>Done!</info>');
-		return Command::SUCCESS;
-	}
+            // 2.1.b) In each “classes/...” folder, create an index.php via stub
+            $destinationFile = $newDir . '/index.php';
+            $replacements = [
+                '{{SLUG}}' => $slug,
+            ];
+
+            if (! $dryRun) {
+                try {
+                    $fullPath = $this->createFileFromStub(
+                        'index',
+                        $newDir,
+                        'index.php',
+                        $replacements
+                    );
+                    $this->io->text("✔ Stub created: $fullPath");
+                } catch (\Throwable $e) {
+                    // Error is already printed inside createFileFromStub
+                    return Command::FAILURE;
+                }
+            } else {
+                $this->io->text("DRY-RUN ▶ createFileFromStub(index.php → $destinationFile)");
+            }
+        }
+
+        // 2.2) Create /inc folder and files index.php + classes.php
+        $incDir = $pluginDir . '/inc';
+        if (! $dryRun) {
+            try {
+                $this->filesystem->mkdir($incDir, 0755);
+                $this->io->text("✔ Folder: $incDir");
+            } catch (IOExceptionInterface $e) {
+                $this->io->error("Error creating $incDir: " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ mkdir $incDir");
+        }
+
+        // inc/index.php
+        $replacementsIncIndex = [
+            '{{SLUG}}' => $slug,
+        ];
+        $destIncIndex = $incDir . '/index.php';
+        if (! $dryRun) {
+            try {
+                $fullPath = $this->createFileFromStub(
+                    'index',
+                    $incDir,
+                    'index.php',
+                    $replacementsIncIndex
+                );
+                $this->io->text("✔ Stub created: $fullPath");
+            } catch (\Throwable $e) {
+            	$this->io->error("Exception when invoking createFileFromStub('index'): " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ createFileFromStub(index.php → $destIncIndex)");
+        }
+
+        // inc/classes.php
+        $replacementsClassesPhp = [
+            '{{SLUG}}'       => $slug,
+            '{{SLUG_PARENT}}' => $this->slugRoot,
+        ];
+        $destIncClasses = $incDir . '/classes.php';
+        if (! $dryRun) {
+            try {
+                $fullPath = $this->createFileFromStub(
+                    'classes',
+                    $incDir,
+                    'classes.php',
+                    $replacementsClassesPhp
+                );
+                $this->io->text("✔ Stub created: $fullPath");
+            } catch (\Throwable $e) {
+            	$this->io->error("Exception when invoking createFileFromStub('classes'): " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ createFileFromStub(classes.php → $destIncClasses)");
+        }
+
+        // 2.3) Create autoloader.php at the root of the plugin
+        $replacementsAutoloader = [
+            '{{SLUG}}'       => $slug,
+            '{{SLUG_PARENT}}' => $this->slugRoot,
+        ];
+        $destAutoloader = $pluginDir . '/autoloader.php';
+        if (! $dryRun) {
+            try {
+                $fullPath = $this->createFileFromStub(
+                    'autoloader',
+                    $pluginDir,
+                    'autoloader.php',
+                    $replacementsAutoloader
+                );                $this->io->text("✔ Stub created: $fullPath");
+            } catch (\Throwable $e) {
+            	$this->io->error("Exception when invoking createFileFromStub('autoloader'): " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ createFileFromStub(autoloader → $destAutoloader)");
+        }
+
+        // 2.4) Create main {slug}.php file with plugin header
+        $replacementsPluginMain = [
+            '{{PLUGIN_NAME}}' => $name,
+            '{{SLUG}}'        => $slug,
+            '{{SLUG_PARENT}}'  => $this->slugRoot,
+            '{{TEXT_DOMAIN}}' => $slug,
+            '{{AUTHOR}}'      => 'RogerTM',
+            '{{AUTHOR_URI}}'  => 'https://rogertm.com',
+            '{{PLUGIN_URI}}'  => 'https://github.com/rogertm/wasp',
+            '{{VERSION}}'     => '1.0.0',
+        ];
+        $destPluginFile = $pluginDir . '/' . $slug . '.php';
+        if (! $dryRun) {
+            try {
+                $fullPath = $this->createFileFromStub(
+                    'plugin',
+                    $pluginDir,
+                    $slug . '.php',
+                    $replacementsPluginMain
+                );
+                $this->io->text("✔ Stub created: $fullPath");
+            } catch (\Throwable $e) {
+            	$this->io->error("Exception when invoking createFileFromStub('plugin'): " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ createFileFromStub(plugin → $destPluginFile)");
+        }
+
+        // 3) Finish
+        $this->io->newLine();
+        if ($dryRun) {
+            $this->io->success('🦄 DRY-RUN completed. No files were created.');
+        } else {
+            $this->io->success("🎉 Plugin “{$name}” successfully generated at: $pluginDir");
+        }
+
+        return Command::SUCCESS;
+    }
 }

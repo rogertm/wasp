@@ -1,0 +1,27 @@
+<?php
+/**
+ * Plugin Name: {{PLUGIN_NAME}}
+ * Description: Wow! Starter child plugin
+ * Plugin URI: {{PLUGIN_URI}}
+ * Author: {{AUTHOR}}
+ * Author URI: {{AUTHOR_URI}}
+ * Version: {{VERSION}}
+ * License: GPL2
+ * Text Domain: {{TEXT_DOMAIN}}
+ * Domain Path: /languages
+ */
+
+// If this file is called directly, abort.
+if ( ! defined( 'WPINC' ) ) {
+    die;
+}
+
+if ( file_exists( WP_PLUGIN_DIR . '/{{SLUG_PARENT}}/{{SLUG_PARENT}}.php' ) ) {
+    require WP_PLUGIN_DIR . '/{{SLUG_PARENT}}/{{SLUG_PARENT}}.php';
+    require plugin_dir_path( __FILE__ ) .'/autoloader.php';
+    require plugin_dir_path( __FILE__ ) .'/inc/index.php';
+} else {
+    wp_die( __( 'This plugin requires WASP', '{{TEXT_DOMAIN}}' ), __( 'Bum! 💣', '{{TEXT_DOMAIN}}' ) );
+}
+
+/** Your code goes here 😎 */

@@ -100,7 +100,7 @@ class ProjectRenameCommand extends Command
         $dryRun = (bool) $input->getOption('dry-run');
 
         if ($dryRun) {
-            $io->warning('⚡ Dry-run mode enabled: no files will be modified.');
+            $io->warning('⚡ DRY-RUN mode enabled: no files will be modified.');
         }
 
         // 3) Create backup if requested
