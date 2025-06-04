@@ -1,13 +1,15 @@
 <?php
 namespace WaspCli\Command;
 
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use RegexIterator;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 class ProjectRenameCommand extends Command
 {
@@ -16,123 +18,307 @@ class ProjectRenameCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setDescription('Renames strings and files in this plugin using existing config')
-            ->addArgument('project_name', InputArgument::REQUIRED, 'New project name (e.g., My Custom Plugin)');
+            ->setDescription('Rename strings and files in this plugin using the existing configuration')
+            ->addArgument(
+                'project_name',
+                InputArgument::REQUIRED,
+                'New project name (e.g. "My Custom Plugin")'
+            )
+            ->addOption(
+                'dry-run',
+                null,
+                InputOption::VALUE_NONE,
+                'If specified, only shows which files would be changed without modifying anything.'
+            )
+            ->addOption(
+                'backup',
+                null,
+                InputOption::VALUE_NONE,
+                'Generate a backup in backup/{timestamp}/ before renaming.'
+            )
+            ->addOption(
+                'config',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Path to JSON config file (default: cli/config.json)',
+                'cli/config.json'
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // Base directory and static config file
-        $baseDir    = realpath(__DIR__ . '/../../');
-        $configPath = $baseDir . '/cli/config.json';
+        // SymfonyStyle instance for rich output
+        $io = new SymfonyStyle($input, $output);
+        $filesystem = new Filesystem();
 
-        // Load existing config or defaults
+        $baseDir    = realpath(__DIR__ . '/../../');
+        $configPath = $baseDir . '/' . ltrim($input->getOption('config'), '/');
+
+        $io->title('🚀 Project Rename');
+
+        // 1) Load existing configuration or use defaults
+        $io->section('1) Loading configuration');
         if (file_exists($configPath)) {
-            $config = json_decode(file_get_contents($configPath), true);
-            $oldNamespace  = $config['namespace'];
-            $searchSlug    = $config['slug'];
-            $oldPrefix     = $config['function_prefix'];
-            $oldTextDomain = $config['text_domain'];
+            $raw = file_get_contents($configPath);
+            $config = json_decode($raw, true);
+            if (!is_array($config)) {
+                $io->error("The JSON in $configPath is not valid.");
+                return Command::FAILURE;
+            }
+            $oldNamespace  = $config['namespace']       ?? 'WASP';
+            $searchSlug    = $config['slug']            ?? 'wasp';
+            $oldPrefix     = $config['function_prefix'] ?? 'wasp_';
+            $oldTextDomain = $config['text_domain']     ?? 'wasp';
+            $io->text("Configuration loaded from: $configPath");
         } else {
+            $io->warning("No configuration found at $configPath. Using default values.");
             $oldNamespace  = 'WASP';
             $searchSlug    = 'wasp';
             $oldPrefix     = 'wasp_';
             $oldTextDomain = 'wasp';
-            $output->writeln('<comment>No existing config found. Using defaults.</comment>');
         }
 
-        // New project settings
+        // 2) Compute new values based on the given project name
+        $io->section('2) Calculating new values');
         $projectName   = $input->getArgument('project_name');
-        $newNamespace  = str_replace(' ', '', ucwords($projectName));
+        $newNamespace  = $this->normalizeNamespace($projectName);
         $newSlug       = $this->slugify($projectName);
         $newPrefix     = str_replace('-', '_', $newSlug) . '_';
         $newTextDomain = $newSlug;
 
-        // Report changes
-        $output->writeln("Old Namespace: $oldNamespace");
-        $output->writeln("New Namespace: $newNamespace");
-        $output->writeln("Old Slug: $searchSlug");
-        $output->writeln("New Slug: $newSlug");
-        $output->writeln("Old Prefix: $oldPrefix");
-        $output->writeln("New Prefix: $newPrefix");
-        $output->writeln("Old Text domain: $oldTextDomain");
-        $output->writeln("New Text domain: $newTextDomain");
+        $io->text([
+            "Old Namespace:      $oldNamespace",
+            "New Namespace:      $newNamespace",
+            "Old Slug:           $searchSlug",
+            "New Slug:           $newSlug",
+            "Old Prefix:         $oldPrefix",
+            "New Prefix:         $newPrefix",
+            "Old Text domain:    $oldTextDomain",
+            "New Text domain:    $newTextDomain",
+        ]);
 
-        // 1) Replace in files (php, js, css), excluding vendor
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($baseDir, RecursiveDirectoryIterator::SKIP_DOTS)
-        );
-        $pattern = '/\.(php|js|css)$/i';
-        foreach (new RegexIterator($iterator, $pattern, RegexIterator::MATCH) as $file) {
-            $path = $file->getRealPath();
-            if (strpos($path, $baseDir . '/vendor/') === 0) {
+        $dryRun = (bool) $input->getOption('dry-run');
+
+        if ($dryRun) {
+            $io->warning('⚡ Dry-run mode enabled: no files will be modified.');
+        }
+
+        // 3) Create backup if requested
+        if ($input->getOption('backup')) {
+            $io->section('3) Creating backup');
+            $timestamp = date('Ymd_His');
+            $backupDir = $baseDir . '/backup/' . $timestamp;
+
+            // Define a Finder that excludes the backup/ folder itself
+            $iterator = Finder::create()
+                ->ignoreDotFiles(false)
+                ->ignoreVCS(true)
+                ->exclude('backup')
+                ->in($baseDir);
+
+            try {
+                // mirror(): if $backupDir doesn't exist, create it; then copy everything from $baseDir filtered by $iterator
+                $filesystem->mirror($baseDir, $backupDir, $iterator);
+                $io->success("🌟 Backup created at: $backupDir");
+            } catch (IOExceptionInterface $e) {
+                $io->error("Error creating backup at $backupDir: " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        }
+
+        // 4) Prepare search and replacement arrays
+        $io->section('4) Processing files (php, js, css)');
+        $searches = [
+            $oldNamespace . '\\',
+            $oldNamespace,
+            $oldPrefix,
+            "'$oldTextDomain'",
+            "\"$oldTextDomain\"",
+            $searchSlug . '-',
+            $searchSlug
+        ];
+        $replacements = [
+            $newNamespace . '\\',
+            $projectName,
+            $newPrefix,
+            "'$newTextDomain'",
+            "\"$newTextDomain\"",
+            $newSlug . '-',
+            $newSlug
+        ];
+
+        $finder = new Finder();
+        $finder
+            ->files()
+            ->ignoreDotFiles(true)
+            ->ignoreVCS(true)
+            ->exclude(['vendor', 'node_modules', 'backup', 'cli', '.git'])
+            ->in($baseDir)
+            ->name('*.php')
+            ->name('*.js')
+            ->name('*.css');
+
+        foreach ($finder as $file) {
+            $filePath = $file->getRealPath();
+            $content  = file_get_contents($filePath);
+
+            $needsChange = false;
+            foreach ($searches as $s) {
+                if (stripos($content, $s) !== false) {
+                    $needsChange = true;
+                    break;
+                }
+            }
+            if (!$needsChange) {
                 continue;
             }
-            $content = file_get_contents($path);
-            $content = str_replace($oldNamespace . '\\', $newNamespace . '\\', $content);
-            $content = str_replace($oldPrefix, $newPrefix, $content);
-            $content = str_replace("'$oldTextDomain'", "'$newTextDomain'", $content);
-            $content = str_replace($searchSlug . '-', $newSlug . '-', $content);
-            $content = str_replace($oldNamespace, $projectName, $content);
-            file_put_contents($path, $content);
-            $output->writeln("Processed: $path");
+
+            $newContent = str_replace($searches, $replacements, $content);
+
+            if ($dryRun) {
+                $io->text("DRY-RUN ▶ Modify content: $filePath");
+            } else {
+                try {
+                    file_put_contents($filePath, $newContent);
+                    $io->text("✔ Processed: $filePath");
+                } catch (\Throwable $e) {
+                    $io->error("✖ Error writing $filePath: " . $e->getMessage());
+                }
+            }
         }
 
-        // 2) Rename files in classes (excluding vendor)
-        $classesDir = $baseDir . '/classes';
-        if (is_dir($classesDir)) {
-            $it = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($classesDir, RecursiveDirectoryIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::CHILD_FIRST
-            );
-            foreach ($it as $item) {
-                $filePath = $item->getRealPath();
-                if (strpos($filePath, $baseDir . '/vendor/') === 0) {
+        // 5) Rename files in /classes
+        $classesPath = $baseDir . '/classes';
+        if (is_dir($classesPath)) {
+            $io->section('5) Renaming files in /classes');
+            $finderClasses = new Finder();
+            $finderClasses
+                ->files()
+                ->ignoreDotFiles(true)
+                ->ignoreVCS(true)
+                ->exclude(['vendor', 'node_modules', '.git'])
+                ->in($classesPath)
+                ->name('*' . $searchSlug . '*');
+
+            foreach ($finderClasses as $file) {
+                $oldName = $file->getFilename();
+                $oldFull = $file->getRealPath();
+                $newName = str_ireplace($searchSlug . '-', $newSlug . '-', $oldName);
+                $newName = str_ireplace($searchSlug, $newSlug, $newName);
+                $newFull = $file->getPath() . DIRECTORY_SEPARATOR . $newName;
+
+                if ($oldFull === $newFull) {
                     continue;
                 }
-                if ($item->isFile() && stripos($item->getFilename(), $searchSlug) !== false) {
-                    $newName = str_ireplace([
-                        $searchSlug . '-',
-                        $searchSlug
-                    ], [
-                        $newSlug . '-',
-                        $newSlug
-                    ], $item->getFilename());
-                    $newPath = $item->getPath() . DIRECTORY_SEPARATOR . $newName;
-                    rename($filePath, $newPath);
-                    $output->writeln("Renamed: $filePath -> $newPath");
+
+                if ($dryRun) {
+                    $io->text("DRY-RUN ▶ Rename: $oldFull → $newFull");
+                } else {
+                    try {
+                        $filesystem->rename($oldFull, $newFull);
+                        $io->text("✔ Renamed: $oldFull → $newFull");
+                    } catch (IOExceptionInterface $e) {
+                        $io->error("✖ Error renaming $oldFull: " . $e->getMessage());
+                    }
                 }
             }
         }
 
-        // 3) Rename root PHP files with slug
-        foreach (glob($baseDir . '/*.php') as $file) {
-            $filename = basename($file);
-            if (stripos($filename, $searchSlug) !== false) {
-                $newName = str_ireplace($searchSlug, $newSlug, $filename);
-                $newPath = $baseDir . '/' . $newName;
-                rename($file, $newPath);
-                $output->writeln("Renamed root file: $file -> $newPath");
+        // 6) Rename root files (*.php) containing old slug
+        $io->section('6) Renaming root files');
+        $finderRoot = new Finder();
+        $finderRoot
+            ->files()
+            ->in($baseDir)
+            ->depth('== 0')
+            ->name('*.php')
+            ->name('*' . $searchSlug . '*');
+
+        foreach ($finderRoot as $file) {
+            $oldName = $file->getFilename();
+            $oldFull = $file->getRealPath();
+            $newName = str_ireplace($searchSlug, $newSlug, $oldName);
+            $newFull = $baseDir . DIRECTORY_SEPARATOR . $newName;
+
+            if ($oldFull === $newFull) {
+                continue;
+            }
+
+            if ($dryRun) {
+                $io->text("DRY-RUN ▶ Rename root: $oldFull → $newFull");
+            } else {
+                try {
+                    $filesystem->rename($oldFull, $newFull);
+                    $io->text("✔ Root renamed: $oldFull → $newFull");
+                } catch (IOExceptionInterface $e) {
+                    $io->error("✖ Error renaming root $oldFull: " . $e->getMessage());
+                }
             }
         }
 
-        // 4) Save updated config back to static file
+        // 7) Update config.json if changed
+        $io->section('7) Updating config.json');
         $newConfig = [
             'namespace'       => $newNamespace,
             'slug'            => $newSlug,
             'function_prefix' => $newPrefix,
             'text_domain'     => $newTextDomain,
         ];
-        file_put_contents($configPath, json_encode($newConfig, JSON_PRETTY_PRINT));
-        $output->writeln("Config updated: $configPath");
+        $newConfigJson = json_encode($newConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-        $output->writeln('<info>Rename complete.</info>');
+        if (!$dryRun) {
+            $configChanged = true;
+            if (file_exists($configPath)) {
+                $oldConfigJson = file_get_contents($configPath);
+                $configChanged = (trim($oldConfigJson) !== trim($newConfigJson));
+            }
+
+            if ($configChanged) {
+                try {
+                    file_put_contents($configPath, $newConfigJson);
+                    $io->success("🥳 Config updated: $configPath");
+                } catch (\Throwable $e) {
+                    $io->error("✖ Error writing $configPath: " . $e->getMessage());
+                }
+            } else {
+                $io->warning('config.json is already up to date. No changes made.');
+            }
+        }
+
+        if ($dryRun) {
+            $io->newLine();
+            $io->success('🦄 DRY-RUN complete. No files were modified.');
+            return Command::SUCCESS;
+        }
+
+        $io->newLine();
+        $io->success('🎉 Renaming completed successfully.');
         return Command::SUCCESS;
     }
 
+    /**
+     * Transforms "My New Project" into "MyNewProject" (valid namespace).
+     */
+    private function normalizeNamespace(string $text): string
+    {
+        $trans = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+        $clean = preg_replace('/[^A-Za-z0-9 ]/', '', $trans);
+        $parts = array_filter(explode(' ', $clean), fn($p) => $p !== '');
+        $camel = '';
+        foreach ($parts as $p) {
+            $camel .= ucfirst(strtolower($p));
+        }
+        return $camel ?: 'WASP';
+    }
+
+    /**
+     * Converts text into a slug: "My New Project" → "my-new-project"
+     */
     private function slugify(string $text): string
     {
+        $text = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
         $text = preg_replace('/[^\p{L}\p{Nd}]+/u', '-', $text);
+        $text = preg_replace('/-+/', '-', $text);
         return strtolower(trim($text, '-'));
     }
 }
