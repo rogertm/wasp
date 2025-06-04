@@ -16,7 +16,8 @@ class CreateSettingFieldsCommand extends AbstractGeneratorCommand
 			->setDescription('Creates a new Settings Fields class file using project config')
 			->addArgument('section', InputArgument::REQUIRED, 'Section name (e.g., My section fields)')
 			->addArgument('page_slug', InputArgument::REQUIRED, 'The slug-name of the settings page on which to show the section. (e.g., wasp-dashboard-setting)')
-			->addArgument('is_subpage', InputArgument::OPTIONAL, 'If the setting fields are to be displayed on a sub page, this value must be specified as "subpage", default is null', null);
+			->addArgument('is_subpage', InputArgument::OPTIONAL, 'If the setting fields are to be displayed on a sub page, this value must be specified as "subpage", default is null', null)
+			->addArgument('project', InputArgument::OPTIONAL, 'Project slug where this CPT should be created (e.g., wasp-child). If omitted, uses WASP.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int
@@ -26,17 +27,29 @@ class CreateSettingFieldsCommand extends AbstractGeneratorCommand
 		$section		= $input->getArgument('section');
 		$page_slug		= $input->getArgument('page_slug');
 		$is_subpage		= $input->getArgument('is_subpage');
+		$project 		= $input->getArgument('project');
+		if (isset($project) && !is_dir('../'. $project)){
+			$output->writeln("<error>Project not found: $project</error>");
+			return Command::FAILURE;
+		}
+
+		$this->baseDir	= ($project) ? $this->baseDir .'/../'. $project : $this->baseDir;
 		$slug			= $this->slugify($section);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Setting_Fields_' . $classSuffix;
-		$targetDir		= '/classes/setting-fields';
-		$fileName		= "class-{$this->slugRoot}-setting-fields-{$slug}.php";
+		$targetDir		= ($project) ? '../'.$project.'/classes/setting-fields' : 'classes/setting-fields';
+		$projectSlug	= $project ?: $this->slugRoot;
+		$fileName		= "class-{$projectSlug}-setting-fields-{$slug}.php";
 		$filePath 		= $this->file($targetDir, $fileName, $output);
 
 		if (false === $filePath)
 			return Command::FAILURE;
 
-		$namespaceDecl	= $this->namespaceRoot . '\\Setting_Fields';
+		$textDomain		= ($project) ? $project : $this->textDomain;
+		$nsParts		= ($project) ? array_map('ucfirst', explode('-', $project)) : null;
+		$nsDeclPrefix	= ($nsParts) ? implode('', $nsParts) : $this->namespaceRoot;
+
+		$namespaceDecl	= $nsDeclPrefix . '\\Setting_Fields';
 		$useDecl		= $this->namespaceRoot . '\\Setting_Fields\\Setting_Fields';
 		$filter			= str_replace('-', '_', $slug);
 		$subpage 		= ('subpage' === $is_subpage) ? 'sub' : null;
@@ -52,12 +65,12 @@ class {$className} extends Setting_Fields
 	{
 		parent::__construct();
 		\$this->slug 			= '{$page_slug}';
-		\$this->option_group 	= '{$this->slugRoot}_{$subpage}setting';
-		\$this->option_name 		= '{$this->slugRoot}_{$subpage}options';
+		\$this->option_group 	= '{$projectSlug}_{$subpage}setting';
+		\$this->option_name 		= '{$projectSlug}_{$subpage}options';
 		\$this->section_id 		= '{$slug}-section-id';
-		\$this->section_title 	= __( '{$section}', '{$this->textDomain}' );
+		\$this->section_title 	= __( '{$section}', '{$textDomain}' );
 		\$this->field_id 		= '{$slug}-field-id';
-		\$this->field_title 		= __( '{$section} fields', '{$this->textDomain}' );
+		\$this->field_title 		= __( '{$section} fields', '{$textDomain}' );
 	}
 
 	function fields()
@@ -66,7 +79,7 @@ class {$className} extends Setting_Fields
 			// Your fields goes here...
 		);
 
-		return apply_filters( '{$this->slugRoot}_{$filter}_custom_fields', \$fields );
+		return apply_filters( '{$projectSlug}_{$filter}_custom_fields', \$fields );
 	}
 }
 
@@ -74,12 +87,12 @@ PHP;
 
 		$instanceLine = sprintf(
 		    "new %s\\Setting_Fields\\%s;\n",
-		    $this->namespaceRoot,
+		    $nsDeclPrefix,
 		    $className
 		);
 		$label = 'Setting Fields';
 
-		$this->write( $filePath, $content, $label, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output, $project );
 
 		return Command::SUCCESS;
 

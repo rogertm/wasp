@@ -50,9 +50,8 @@ abstract class AbstractGeneratorCommand extends Command
 		return strtolower(trim($text, '-'));
 	}
 
-	protected function file( $dir, $fileName, $output )
+	protected function file( $targetDir, $fileName, $output )
 	{
-		$targetDir = $this->baseDir . $dir;
 		if (!is_dir($targetDir)) {
 			mkdir($targetDir, 0755, true);
 		}
@@ -67,12 +66,14 @@ abstract class AbstractGeneratorCommand extends Command
 		}
 	}
 
-	protected function write( $filePath, $content, $label, $instanceLine, $output )
+	protected function write( $filePath, $content, $label, $instanceLine, $output, $project )
 	{
 		file_put_contents($filePath, $content);
 		$output->writeln("Created $label class file: $filePath");
 
-		$loaderFile = $this->baseDir . '/inc/classes.php';
+		$loaderFile = ($project)
+						? '../'. $project .'/inc/classes.php'
+						: 'inc/classes.php';
 
 		if (file_exists($loaderFile) && is_writable($loaderFile)) {
 			file_put_contents($loaderFile, $instanceLine, FILE_APPEND);

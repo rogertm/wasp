@@ -14,7 +14,8 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
 	{
 		$this
 			->setDescription('Creates a new Custom Post Type class file using project config')
-			->addArgument('name', InputArgument::REQUIRED, 'Post Type name (e.g., Book)');
+			->addArgument('name', InputArgument::REQUIRED, 'Post Type name (e.g., Book)')
+			->addArgument('project', InputArgument::OPTIONAL, 'Project slug where this CPT should be created (e.g., wasp-child). If omitted, uses WASP.');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int
@@ -22,17 +23,29 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
 		$this->initialize($input, $output);
 
 		$name			= $input->getArgument('name');
+		$project 		= $input->getArgument('project');
+		if (isset($project) && !is_dir('../'. $project)){
+			$output->writeln("<error>Project not found: $project</error>");
+			return Command::FAILURE;
+		}
+
+		$this->baseDir	= ($project) ? $this->baseDir .'/../'. $project : $this->baseDir;
 		$slug			= $this->slugify($name);
 		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
 		$className		= 'Post_Type_' . $classSuffix;
-		$targetDir		=  '/classes/post-type';
-		$fileName		= "class-{$this->slugRoot}-post-type-{$slug}.php";
+		$targetDir		= ($project) ? '../'.$project.'/classes/post-type' : 'classes/post-type';
+		$projectSlug	= $project ?: $this->slugRoot;
+		$fileName		= "class-{$projectSlug}-post-type-{$slug}.php";
 		$filePath 		= $this->file($targetDir, $fileName, $output);
 
 		if (false === $filePath)
 			return Command::FAILURE;
 
-		$namespaceDecl = $this->namespaceRoot . '\\Post_Type';
+		$textDomain		= ($project) ? $project : $this->textDomain;
+		$nsParts		= ($project) ? array_map('ucfirst', explode('-', $project)) : null;
+		$nsDeclPrefix	= ($nsParts) ? implode('', $nsParts) : $this->namespaceRoot;
+
+		$namespaceDecl = $nsDeclPrefix . '\\Post_Type';
 		$useDecl       = $this->namespaceRoot . '\\Posts\\Post_Type';
 		$content       = <<<PHP
 <?php
@@ -47,11 +60,11 @@ class {$className} extends Post_Type
 		parent::__construct();
 
 		// CPT slug
-		\$this->post_type = '{$this->slugRoot}-{$slug}';
+		\$this->post_type = '{$projectSlug}-{$slug}';
 
 		// CPT labels
 		\$this->labels = array(
-			'name'		=> _x( '{$name}', 'Post type general name', '{$this->textDomain}' )
+			'name'		=> _x( '{$name}', 'Post type general name', '{$textDomain}' )
 		);
 
 		// CPT arguments
@@ -65,12 +78,12 @@ PHP;
 
 		$instanceLine = sprintf(
 		    "new %s\\Post_Type\\%s;\n",
-		    $this->namespaceRoot,
+		    $nsDeclPrefix,
 		    $className
 		);
 		$label = 'Post Type';
 
-		$this->write( $filePath, $content, $label, $instanceLine, $output );
+		$this->write( $filePath, $content, $label, $instanceLine, $output, $project );
 
 		return Command::SUCCESS;
 	}
