@@ -1,0 +1,28 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Taxonomy
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Taxonomy slug
+        $this->taxonomy    = '{{SLUG_FULL}}';
+
+        // Object type asociado
+        $this->object_type = '{{OBJECT_TYPE}}';
+
+        // Taxonomy labels
+        $this->labels = array(
+            'name' => _x( '{{NAME}}', 'Taxonomy general name', '{{TEXT_DOMAIN}}' )
+        );
+
+        // Taxonomy arguments
+        $this->args = array(
+            'public' => true
+        );
+    }
+}

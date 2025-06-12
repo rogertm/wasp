@@ -153,7 +153,7 @@ class ProjectNewCommand extends AbstractGeneratorCommand
         if (! $dryRun) {
             try {
                 $fullPath = $this->createFileFromStub(
-                    'index',
+                    'inc.index',
                     $incDir,
                     'index.php',
                     $replacementsIncIndex

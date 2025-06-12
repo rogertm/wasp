@@ -1,0 +1,36 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Setting_Fields
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Target settings page slug
+        $this->slug          = '{{PAGE_SLUG}}';
+
+        // Option group and name
+        $this->option_group  = '{{OPTION_GROUP}}';
+        $this->option_name   = '{{OPTION_NAME}}';
+
+        // Section identification
+        $this->section_id    = '{{SECTION_ID}}';
+        $this->section_title = __( '{{SECTION_TITLE}}', '{{TEXT_DOMAIN}}' );
+
+        // Field identification
+        $this->field_id      = '{{FIELD_ID}}';
+        $this->field_title   = __( '{{FIELD_TITLE}}', '{{TEXT_DOMAIN}}' );
+    }
+
+    public function fields()
+    {
+        $fields = array(
+            // Define your custom fields here...
+        );
+
+        return apply_filters('{{FILTER}}_custom_fields', $fields);
+    }
+}

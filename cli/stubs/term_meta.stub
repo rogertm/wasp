@@ -1,0 +1,24 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Term_Meta
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Taxonomy to which this meta applies
+        $this->taxonomy = '{{TAXONOMY}}';
+    }
+
+    public function fields()
+    {
+        $fields = array(
+            // Define your custom fields here...
+        );
+
+        return apply_filters('{{FILTER}}_term_meta_fields', $fields);
+    }
+}

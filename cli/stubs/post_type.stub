@@ -1,0 +1,25 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Post_Type
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // CPT slug
+        $this->post_type = '{{SLUG_FULL}}';
+
+        // CPT labels
+        $this->labels = array(
+            'name' => _x( '{{NAME}}', 'Post type general name', '{{TEXT_DOMAIN}}' )
+        );
+
+        // CPT arguments
+        $this->args = array(
+            'public' => true
+        );
+    }
+}

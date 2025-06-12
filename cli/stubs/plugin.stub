@@ -16,12 +16,27 @@ if ( ! defined( 'WPINC' ) ) {
     die;
 }
 
-if ( file_exists( WP_PLUGIN_DIR . '/{{SLUG_PARENT}}/{{SLUG_PARENT}}.php' ) ) {
+if ( file_exists( WP_PLUGIN_DIR . '/{{SLUG_PARENT}}/{{SLUG_PARENT}}.php' )
+        && is_plugin_active( '{{SLUG_PARENT}}/{{SLUG_PARENT}}.php' ) ) {
     require WP_PLUGIN_DIR . '/{{SLUG_PARENT}}/{{SLUG_PARENT}}.php';
     require plugin_dir_path( __FILE__ ) .'/autoloader.php';
     require plugin_dir_path( __FILE__ ) .'/inc/index.php';
 } else {
-    wp_die( __( 'This plugin requires WASP', '{{TEXT_DOMAIN}}' ), __( 'Bum! 💣', '{{TEXT_DOMAIN}}' ) );
+    add_action( 'admin_notices', function(){
+        ?>
+        <div class="notice notice-error">
+            <p>
+            <?php
+                printf(
+                    __( 'Error: <strong>%s</strong> require <a href="%s">WASP</a> to work properly.', '{{TEXT_DOMAIN}}' ),
+                        '{{PLUGIN_NAME}}',
+                        'https://github.com/rogertm/wasp'
+                );
+            ?>
+            </p>
+        </div>
+        <?php
+    } );
 }
 
 /** Your code goes here 😎 */

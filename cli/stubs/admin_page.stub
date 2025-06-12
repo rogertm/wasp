@@ -1,0 +1,34 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Admin_Page
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Page title shown in header
+        $this->page_title   = __( '{{PAGE_TITLE}}', '{{TEXT_DOMAIN}}' );
+
+        // Title used in menu
+        $this->menu_title   = __( '{{MENU_TITLE}}', '{{TEXT_DOMAIN}}' );
+
+        // Heading shown within the page
+        $this->page_heading = __( '{{PAGE_HEADING}}', '{{TEXT_DOMAIN}}' );
+
+        // Capability required to view this page
+        $this->capability   = '{{CAPABILITY}}';
+
+        // Unique slug for the menu
+        $this->menu_slug    = '{{MENU_SLUG}}';
+
+        // Settings option group and name
+        $this->option_group = '{{OPTION_GROUP}}';
+        $this->option_name  = '{{OPTION_NAME}}';
+
+        // Menu position
+        $this->position     = {{POSITION}};
+    }
+}

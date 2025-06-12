@@ -4,87 +4,201 @@ namespace WaspCli\Command;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Finder\Finder;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 class CreatePostTypeCommand extends AbstractGeneratorCommand
 {
-	protected static $defaultName = 'create:post_type';
+    protected static $defaultName = 'create:post_type';
 
-	protected function configure(): void
-	{
-		$this
-			->setDescription('Creates a new Custom Post Type class file using project config')
-			->addArgument('name', InputArgument::REQUIRED, 'Post Type name (e.g., Book)')
-			->addArgument('project', InputArgument::OPTIONAL, 'Project slug where this CPT should be created (e.g., wasp-child). If omitted, uses WASP.');
-	}
+    protected function configure(): void
+    {
+        $this
+            ->setDescription('Creates a new Custom Post Type class using stubs and project configuration')
+            ->addArgument('name', InputArgument::REQUIRED, 'Name of the Post Type (e.g.: Book)')
+            ->addArgument(
+                'project',
+                InputArgument::OPTIONAL,
+                'Project slug where the CPT will be created (e.g.: wasp-child). If omitted, uses WASP.'
+            )
+            ->addOption(
+                'dry-run',
+                null,
+                InputOption::VALUE_NONE,
+                'Simulates the creation without writing files.'
+            );
+    }
 
-	protected function execute(InputInterface $input, OutputInterface $output): int
-	{
-		$this->initialize($input, $output);
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        // 1) Initialize SymfonyStyle, Filesystem and load config
+        $this->io = new SymfonyStyle($input, $output);
+        $this->filesystem = new \Symfony\Component\Filesystem\Filesystem();
 
-		$name			= $input->getArgument('name');
-		$project 		= $input->getArgument('project');
-		if (isset($project) && !is_dir('../'. $project)){
-			$output->writeln("<error>Project not found: $project</error>");
-			return Command::FAILURE;
-		}
+        $this->io->title('📌  Custom Post Type Creation');
 
-		$this->baseDir	= ($project) ? $this->baseDir .'/../'. $project : $this->baseDir;
-		$slug			= $this->slugify($name);
-		$classSuffix	= str_replace('-', '_', ucwords($slug, '-'));
-		$className		= 'Post_Type_' . $classSuffix;
-		$targetDir		= ($project) ? '../'.$project.'/classes/post-type' : 'classes/post-type';
-		$projectSlug	= $project ?: $this->slugRoot;
-		$fileName		= "class-{$projectSlug}-post-type-{$slug}.php";
-		$filePath 		= $this->file($targetDir, $fileName, $output);
+        // Initialize base paths/config from AbstractGeneratorCommand
+        try {
+            parent::initialize($input, $output);
+        } catch (\Throwable $e) {
+            $this->io->error('Error loading configuration: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
 
-		if (false === $filePath)
-			return Command::FAILURE;
+        $dryRun = (bool) $input->getOption('dry-run');
+        if ($dryRun) {
+            $this->io->warning('⚡ DRY-RUN mode activated: no files or folders will be created.');
+        }
 
-		$textDomain		= ($project) ? $project : $this->textDomain;
-		$nsParts		= ($project) ? array_map('ucfirst', explode('-', $project)) : null;
-		$nsDeclPrefix	= ($nsParts) ? implode('', $nsParts) : $this->namespaceRoot;
+        // 2) Read arguments
+        $nameArg = $input->getArgument('name');
+        $projectArg = $input->getArgument('project'); // can be null
 
-		$namespaceDecl = $nsDeclPrefix . '\\Post_Type';
-		$useDecl       = $this->namespaceRoot . '\\Posts\\Post_Type';
-		$content       = <<<PHP
-<?php
-namespace {$namespaceDecl};
+        $this->io->section('1) Preparing data');
+        $this->io->text([
+            "Post Type Name:  $nameArg",
+            "Project (optional):  " . ($projectArg ?: 'WASP (default)'),
+        ]);
 
-use {$useDecl};
+        // 3) Determine in which folder the CPT will be created
+        //    If "project" is passed, we assume ../{project} exists (sibling of WASP).
+        if ($projectArg) {
+            $childDir = realpath($this->baseDir . '/../' . $projectArg);
+            if (! $childDir || ! is_dir($childDir)) {
+                $this->io->error("💣 Project not found: $projectArg (expected at {$this->baseDir}/../{$projectArg})");
+                return Command::FAILURE;
+            }
+            $pluginBaseDir = $childDir;
+            $projectSlug = $projectArg;
+        } else {
+            // Use the WASP plugin as the default “project”
+            $pluginBaseDir = $this->baseDir;
+            $projectSlug = $this->slugRoot;
+        }
 
-class {$className} extends Post_Type
-{
-	public function __construct()
-	{
-		parent::__construct();
+        $this->io->text("CPT root directory: $pluginBaseDir");
 
-		// CPT slug
-		\$this->post_type = '{$projectSlug}-{$slug}';
+        // 4) Generate slug and class names
+        $slugCPT = $this->slugify($nameArg);
+        // Example: "book" → "Book"
+        $classSuffix = str_replace('-', '_', ucwords($slugCPT, '-'));
+        $className = 'Post_Type_' . $classSuffix; // e.g.: Post_Type_Book
 
-		// CPT labels
-		\$this->labels = array(
-			'name'		=> _x( '{$name}', 'Post type general name', '{$textDomain}' )
-		);
+        // 5) Compute namespace and use
+        if ($projectArg) {
+            // namespace based on project (e.g. wasp-child → WasPChild\Post_Type)
+            $nsParts = array_map('ucfirst', explode('-', $projectArg));
+            $nsDeclPrefix = implode('', $nsParts);
+        } else {
+            // namespaceRoot comes from config.json (e.g. WASP)
+            $nsDeclPrefix = $this->namespaceRoot;
+        }
+        $namespaceDecl = $nsDeclPrefix . '\\Post_Type';
+        $useDecl = $this->namespaceRoot . '\\Posts\\Post_Type';
 
-		// CPT arguments
-		\$this->args = array(
-			'public'	=> true
-		);
-	}
-}
+        $this->io->text([
+            "Slug CPT:           $slugCPT",
+            "Generated class:    $className",
+            "Declare Namespace:  $namespaceDecl",
+            "Use (extends from): $useDecl",
+        ]);
 
-PHP;
+        // 6) Destination directory: {pluginBaseDir}/classes/post-type
+        $targetDir = $pluginBaseDir . '/classes/post-type';
+        $this->io->text("CPT destination directory: $targetDir");
 
-		$instanceLine = sprintf(
-		    "new %s\\Post_Type\\%s;\n",
-		    $nsDeclPrefix,
-		    $className
-		);
-		$label = 'Post Type';
+        // 6.a) Ensure the folder exists (or simulate it)
+        $this->io->section('2) Creating destination folder');
+        if (! $dryRun) {
+            try {
+                $this->filesystem->mkdir($targetDir, 0755);
+                $this->io->text("✔ Folder created (or already exists): $targetDir");
+            } catch (IOExceptionInterface $e) {
+                $this->io->error("Error creating folder $targetDir: " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ mkdir $targetDir");
+        }
 
-		$this->write( $filePath, $content, $label, $instanceLine, $output, $project );
+        // 7) File name: class-{projectSlug}-post-type-{slugCPT}.php
+        $fileName = "class-{$projectSlug}-post-type-{$slugCPT}.php";
+        $fullFilePath = $targetDir . '/' . $fileName;
 
-		return Command::SUCCESS;
-	}
+        // 7.a) If it already exists, show error
+        if (file_exists($fullFilePath)) {
+            $this->io->error("A CPT with that name already exists: $fullFilePath");
+            return Command::FAILURE;
+        }
+
+        // 8) Prepare replacements for the stub
+        $replacements = [
+            '{{NAMESPACE_DECL}}' => $namespaceDecl,
+            '{{USE_DECL}}'       => $useDecl,
+            '{{CLASS_NAME}}'     => $className,
+            '{{SLUG_FULL}}'      => $projectSlug . '-' . $slugCPT,
+            '{{NAME}}'           => $nameArg,
+            '{{TEXT_DOMAIN}}'    => ($projectArg ?: $this->textDomain),
+        ];
+
+        $this->io->section('3) Generating class from stub');
+
+        if (! $dryRun) {
+            try {
+                $createdPath = $this->createFileFromStub(
+                    'post_type',
+                    $targetDir,
+                    $fileName,
+                    $replacements
+                );
+                $this->io->success("✔ CPT class created at: $createdPath");
+            } catch (\Throwable $e) {
+                $this->io->error("Error generating CPT: " . $e->getMessage());
+                return Command::FAILURE;
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ createFileFromStub(post_type → $fullFilePath)");
+        }
+
+        // 9) Write instance to inc/classes.php (if it exists) so it auto-registers
+        $this->io->section('4) Adding registration in inc/classes.php');
+        // Absolute path to inc/classes.php in that plugin
+        $loaderFile = $pluginBaseDir . '/inc/classes.php';
+
+        // Line to add: new Namespace\Post_Type\ClassName;
+        $instanceLine = sprintf(
+            "new %s\\Post_Type\\%s;\n",
+            $nsDeclPrefix,
+            $className
+        );
+
+        if (! $dryRun) {
+            if (file_exists($loaderFile) && is_writable($loaderFile)) {
+                try {
+                    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+                    $this->io->success("✔ Instance added to: $loaderFile");
+                } catch (\Throwable $e) {
+                    $this->io->error("Error writing to $loaderFile: " . $e->getMessage());
+                    return Command::FAILURE;
+                }
+            } else {
+                $this->io->warning("Could not open or write to $loaderFile. Make sure it exists and is writable.");
+            }
+        } else {
+            $this->io->text("DRY-RUN ▶ Add line to loader: $loaderFile");
+        }
+
+        // 10) Completion
+        $this->io->newLine();
+        if ($dryRun) {
+            $this->io->success('🦄 DRY-RUN completed. No file was created or modified.');
+        } else {
+            $this->io->success('🎉 Custom Post Type successfully generated.');
+        }
+
+        return Command::SUCCESS;
+    }
 }

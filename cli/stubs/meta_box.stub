@@ -1,0 +1,35 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Meta_Box
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Meta Box ID
+        $this->id           = '{{SLUG_FULL}}-custom-field';
+
+        // Meta Box Title
+        $this->title        = __( '{{NAME}}', '{{TEXT_DOMAIN}}' );
+
+        // Screens where it appears
+        $this->screen       = '{{SCREEN}}';
+
+        // Default context and priority
+        $this->context      = 'advanced';
+        $this->priority     = 'default';
+        $this->callback_args= null;
+    }
+
+    public function fields()
+    {
+        $fields = array(
+            // Define your custom fields here...
+        );
+
+        return apply_filters( '{{FILTER}}_custom_fields', $fields );
+    }
+}
