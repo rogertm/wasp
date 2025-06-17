@@ -4,24 +4,42 @@
  *
  * @since 1.0.0
  */
-spl_autoload_register( function( $class ){
-	$directories = glob( plugin_dir_path( __FILE__ ) .'classes/*', GLOB_ONLYDIR );
+spl_autoload_register( function( $class ) {
+	static $base_dir   = null;
+	static $subfolders = null;
 
-	$parts = explode( '\\', $class );
-	$class_name = end( $parts );
-
-	foreach ( $directories as $dir ) :
-		$prefixes = array(
-			'class',
-			'interface'
+	if ( $base_dir === null ) {
+		$base_dir   = plugin_dir_path( __FILE__ ) . 'classes/';
+		$subfolders = array_filter(
+			scandir( $base_dir ),
+			function( $item ) use ( $base_dir ) {
+				return $item[0] !== '.' && is_dir( $base_dir . $item );
+			}
 		);
-		foreach ( $prefixes as $prefix ) :
-			$file = $dir .'/'. $prefix .'-wasp-'. str_replace( '_', '-', strtolower( $class_name ) ) .'.php';
+	}
 
-			if ( file_exists( $file ) ) :
+	$parts		= explode( '\\', $class );
+	$class_name	= array_pop( $parts );
+
+	$normalized = strtolower(
+		str_replace( '_', '-', preg_replace( '/^Wasp_/', '', $class_name ) )
+	);
+
+
+	foreach ( $subfolders as $folder ) {
+		foreach ( [ 'class', 'interface' ] as $type ) {
+			$file = sprintf(
+				'%s%s/%s-wasp-%s.php',
+				$base_dir,
+				$folder,
+				$type,
+				$normalized
+			);
+
+			if ( file_exists( $file ) ) {
 				require_once $file;
-				break;
-			endif;
-		endforeach;
-	endforeach;
+				return;
+			}
+		}
+	}
 } );
