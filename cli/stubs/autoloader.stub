@@ -1,16 +1,44 @@
 <?php
 /**
  * Autoloader 101 for {{SLUG}}
+ *
+ * @since 1.0.0
  */
 spl_autoload_register( function( $class ) {
-    $directories = glob( plugin_dir_path( __FILE__ ) .'classes/*', GLOB_ONLYDIR );
-    $parts = explode( '\\', $class );
-    $class_name = end( $parts );
-    foreach ( $directories as $dir ) {
-        $file = $dir .'/class-{{SLUG}}-'. str_replace( '_', '-', strtolower( $class_name ) ) .'.php';
+    static $base_dir   = null;
+    static $subfolders = null;
+
+    // 1. Initialize base directory and scan subfolders once
+    if ( $base_dir === null ) {
+        $base_dir   = plugin_dir_path( __FILE__ ) . 'classes/';
+        $subfolders = array_filter(
+            scandir( $base_dir ),
+            function( $item ) use ( $base_dir ) {
+                // skip ".", ".." and keep only directories
+                return $item[0] !== '.' && is_dir( $base_dir . $item );
+            }
+        );
+    }
+
+    // 2. Extract the base class name (without namespace)
+    $parts      = explode( '\\', $class );
+    $class_name = array_pop( $parts );
+
+    // 3. Normalize: lowercase and convert underscores to dashes
+    $normalized = str_replace( '_', '-', strtolower( $class_name ) );
+
+    // 4. Loop through each subfolder and look for class-{{SLUG}}-*.php
+    foreach ( $subfolders as $folder ) {
+        $file = sprintf(
+            '%1$s%2$s/class-{{SLUG}}-%3$s.php',
+            $base_dir,
+            $folder,
+            $normalized
+        );
+
         if ( file_exists( $file ) ) {
-            require_once $file;
-            break;
+            require_once $file; // load and stop scanning
+            return;
         }
     }
 } );
