@@ -12,25 +12,32 @@
 
 ```php
 <?php
+namespace WASP\Post_Type;
+
 use WASP\Posts\Post_Type;
 
-class My_Plugin_Custom_Post_Type extends Post_Type
+class Post_Type_Book extends Post_Type
 {
-	function __construct()
-	{
-		parent::__construct();
+    public function __construct()
+    {
+        parent::__construct();
 
-		// CPT slug
-		$this->post_type = 'my-cpt-slug';
+        // CPT slug
+        $this->post_type = 'wasp-book';
 
-		// CPT labels
-		$this->labels = array( ... );
+        // CPT labels
+        $this->labels = array(
+            'name' => _x( 'Book', 'Post type general name', 'wasp' )
+        );
 
-		// CPT arguments
-		$this->args = array( ... );
-	}
+        // CPT arguments
+        $this->args = array(
+            'public' => true
+        );
+    }
 }
-new My_Plugin_Custom_Post_Type;
+
+new WASP\Post_Type\Post_Type_Book;
 ```
 
 ## Instalación
@@ -99,6 +106,39 @@ else
 
 /** Your code goes here 😎 */
 ```
+
+## Wasp Cli
+
+Puedes usar WASP desde la línea de comandos para generar tus clases, incluso crear un nuevo plugin que herede todas las funcionalidades de **WASP**. Para ello debes instalar **Wasp Cli**  usando **Composer**.
+
+```bash
+$ cd /path/to/your/wordpress-site/wp-content/plugins/wasp
+$ composer install
+```
+
+Una vez instaladas las dependencias puedes usar Wasp Cli desde la línea de comandos:
+
+```bash
+php cli/wasp create:post_type "Book"
+```
+
+### Lista de comandos
+
+### `project:`
+
+- `project:new`  Crea un nuevo **child plugin** que hereda de **WASP**
+- `project:rename` Renombra cadenas y archivos en este plugin usando la configuración existente
+
+### `create:`
+
+- `create:admin_page` Crea un nuevo archivo de clase para **Página de Administración** usando la configuración del proyecto
+- `create:admin_subpage` Crea un nuevo archivo de clase para **Subpágina de Administración** usando la configuración del proyecto
+- `create:meta_box` Crea una nueva clase para **Meta Box** usando stubs y la configuración del proyecto
+- `create:post_type` Crea una nueva clase para **Custom Post Type** usando stubs y la configuración del proyecto
+- `create:setting_fields` Crea un nuevo archivo de clase para **Settings Fields** usando la configuración del proyecto
+- `create:taxonomy` Crea una nueva clase para **Taxonomy** usando stubs y la configuración del proyecto
+- `create:term_meta` Crea un nuevo archivo de clase para **Term Meta** usando la configuración del proyecto
+- `create:user_meta` Crea un nuevo archivo de clase para **User Meta** usando la configuración del proyecto
 
 ## Documentación
 
