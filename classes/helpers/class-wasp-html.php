@@ -20,9 +20,9 @@ class HTML
 	 * 		@type string $type 		Field type.
 	 * 								Default 'text'.
 	 * 								Supported values: 'button', 'checkbox', 'color', 'content',
-	 * 								'date', 'datetime-local', 'email', 'file', 'hidden', 'media',
-	 * 								'month', 'nonce' 'number', 'password', 'radio', 'range', 'select',
-	 * 								'tel', 'text', 'textarea', 'time', 'url', 'week'.
+	 * 								'date', 'datetime-local', 'email', 'file', 'hidden', 'html',
+	 * 								'media', 'month', 'nonce' 'number', 'password', 'radio', 'range',
+	 * 								'select', 'tel', 'text', 'textarea', 'time', 'url', 'week'.
 	 * 		@type array $multiple	Array used to define the values of field type 'radio' or 'select'.
 	 * 								$multiple = array(
 	 * 									'option_1' => 'Label 1',
@@ -44,6 +44,7 @@ class HTML
 	 * @since 1.0.0
 	 * @since 1.0.1 				Added $args['default']
 	 * @since 1.0.1 				Added $args['attr']
+	 * @since 1.1.0 				Added $args['html']
 	 */
 	public static function field( $args, $value )
 	{
@@ -59,6 +60,7 @@ class HTML
 		echo '<div class="wasp-field field-'. $args['type'] .'" style="margin-bottom: .5rem">';
 			self::title( $args );
 			self::paragraph( $args );
+			self::html( $args );
 			self::default( $args, $value );
 			self::content( $args, $value );
 			self::textarea( $args, $value );
@@ -99,6 +101,21 @@ class HTML
 		?>
 			<p><?php echo $args['label'] ?></p>
 		<?php
+	}
+
+	/**
+	 * HTML
+	 * @param array $args
+	 *
+	 * @since 1.1.0
+	 */
+	public static function html( $args )
+	{
+		if ( 'html' != $args['type'] )
+			return;
+
+		if ( $args['html'] )
+			echo $args['html'];
 	}
 
 	/**

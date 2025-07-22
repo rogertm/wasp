@@ -5,7 +5,7 @@
  * Plugin URI: https://github.com/themingisprose/wasp
  * Author: RogerTM
  * Author URI: https://rogertm.com
- * Version: 1.0.1
+ * Version: 1.1.0
  * License: GPL2
  * Text Domain: wasp
  * Domain Path: /languages
