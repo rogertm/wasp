@@ -39,7 +39,7 @@ class CreateShortcodeCommand extends AbstractGeneratorCommand
 
         $dryRun    = (bool)$input->getOption('dry-run');
         if ($dryRun) {
-            $this->io->warning('Dry-run mode: no files or directories will be created.');
+            $this->io->warning('⚡ DRY-RUN mode activated: no files or directories will be created.');
         }
 
         // Arguments
@@ -214,7 +214,7 @@ class CreateShortcodeCommand extends AbstractGeneratorCommand
         // Final message
         $this->io->newLine();
         if ($dryRun) {
-            $this->io->success('✅ Dry-run complete. No files were written.');
+            $this->io->success('🦄 DRY-RUN complete. No files were written.');
         } else {
             $this->io->success('🎉 Shortcode generated successfully.');
         }
