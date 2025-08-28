@@ -1,0 +1,57 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Shortcode
+{
+
+	public function __construct()
+	{
+		parent::__construct();
+		$this->shortcode_tag = '{{SHORTCODE_TAG}}';
+		$this->defaults = array();
+		$this->assets = array(
+			'css' => array(
+				array(
+					'handle' => '{{PAGE_SLUG}}-{{SHORTCODE_TAG}}-style',
+					'src' => 'https://your-site.com/style.css',
+					'deps' => null,
+					'ver' => null,
+					'media' => 'all',
+				),
+				// More styles here
+			),
+			'js' => array(
+				array(
+					'handle' => '{{PAGE_SLUG}}-{{SHORTCODE_TAG}}-script',
+					'src' => 'https://your-site.com/script.js',
+					'deps' => null,
+					'ver' => null,
+					'in_footer' => true
+				),
+				// More scripts here
+			)
+		);
+		$this->cache_ttl = DAY_IN_SECONDS;
+	}
+
+	protected function render( array $atts, $content, string $shortcode_tag ) : string
+	{
+		// Create your logic here...
+
+		// Allow theme override: look for theme/child-theme file first.
+		$theme_template = locate_template( 'shortcodes/{{SHORTCODE_TAG}}.php' );
+		if ( $theme_template ) :
+			$template_path = $theme_template;
+		else :
+			$template_path = plugin_dir_path( dirname( __DIR__ ) ) .'templates/shortcodes/{{SHORTCODE_TAG}}.php';
+		endif;
+
+		// Associate array extracted to the template
+		$vars = array();
+
+		// Load your template
+		return $this->render_template( $template_path, $vars );
+	}
+}

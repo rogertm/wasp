@@ -1,0 +1,18 @@
+<?php
+/**
+ * Shortcode template: [{{SHORTCODE_TAG}}]
+ *
+ * Available variables:
+ *  - $atts
+ *  - $content
+ *
+ * Theme override: place a file with the same name in your theme under:
+ *    wp-content/themes/your-theme/shortcodes/{{SHORTCODE_TAG}}.php
+ */
+?>
+<div class="shortcode-{{SHORTCODE_TAG}}">
+    <?php
+    // Example usage: echo one attribute safely.
+    echo esc_html( $atts['example'] ?? '' );
+    ?>
+</div>
