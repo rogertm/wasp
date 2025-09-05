@@ -389,7 +389,7 @@ class HTML
 					if ( is_array( $value ) ) :
 						$selected = ( in_array( $k, $value ) ) ? 'selected' : null;
 					else :
-						$selected = selected( $k, $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ), false );
+						$selected = selected( $k, ($value) ? $value : ( ( isset( $args['default'] ) ) ? $args['default'] : null ), false );
 					endif;
 			?>
 			<option value="<?php echo $k ?>" <?php echo $selected ?>><?php echo $v ?></option>
