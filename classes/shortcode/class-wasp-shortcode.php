@@ -132,8 +132,8 @@ abstract class Shortcode
 				wp_enqueue_style(
 					$style['handle'],
 					$style['src'],
-					(array) $style['deps'],
-					$style['ver'],
+					$style['deps'] ?? null,
+					$style['ver'] ?? null,
 					$style['media'] ?? 'all'
 				);
 			endforeach;
@@ -144,8 +144,8 @@ abstract class Shortcode
 				wp_enqueue_script(
 					$script['handle'],
 					$script['src'],
-					(array) $script['deps'],
-					$script['ver'],
+					$script['deps'] ?? null,
+					$script['ver'] ?? null,
 					$script['in_footer'] ?? true
 				);
 			endforeach;
