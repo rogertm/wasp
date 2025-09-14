@@ -29,17 +29,23 @@ abstract class Shortcode
 
 	/**
 	 * Assets
-	 * Associate array
-	 * [
-	 * 	'css' => [
-	 * 	  [handle, src, deps, ver, media],
-	 * 	  ...
-	 * 	],
-	 * 	'js' => [
-	 * 	  [handle, src, deps, ver, in_footer],
-	 * 	  ...
-	 * 	]
-	 * ]
+	 * Associative array that holds assets to enqueue.
+	 *
+	 * Structure:
+	 *  - css: list of arrays:
+	 *      [ handle (string), src (string), deps (array<string>)?, ver (string|null)?, media (string)? ]
+	 *  - js: list of arrays:
+	 *      [ handle (string), src (string), deps (array<string>)?, ver (string|null)?, in_footer (bool)?, localize (array{object_name:string, l10n:array<string,mixed>})? ]
+	 *
+	 * Example:
+	 *  [
+	 *      'css' => [
+	 *          ['site-style', '/assets/css/site.css', ['wp-editor'], '1.0.0', 'all'],
+	 *      ],
+	 *      'js' => [
+	 *          ['site-script', '/assets/js/site.js', ['jquery'], '1.0.0', true, ['objectName' => 'Site', 'l10n' => ['key' => 'value']]],
+	 *      ],
+	 *  ]
 	 * @access public
 	 * @var array
 	 *
@@ -148,6 +154,13 @@ abstract class Shortcode
 					$script['ver'] ?? null,
 					$script['in_footer'] ?? true
 				);
+				if ( isset( $script['localize'] ) ) :
+					wp_localize_script(
+						$script['handle'],
+						$script['localize']['object_name'],
+						$script['localize']['l10n']
+					);
+				endif;
 			endforeach;
 		endif;
 	}
