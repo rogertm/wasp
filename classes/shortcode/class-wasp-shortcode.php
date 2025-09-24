@@ -65,6 +65,14 @@ abstract class Shortcode
 	 */
 	public int $cache_ttl = 0;
 
+	/**
+	 * Flag to prevent double enqueue
+	 * @access protected
+	 * @var bool
+	 *
+	 * @since 1.1.0
+	 */
+	protected bool $assets_queued = false;
 
 	/**
 	 * Constructor
@@ -85,8 +93,42 @@ abstract class Shortcode
 	{
 		add_shortcode( $this->shortcode_tag, array( $this, 'shortcode_handler' ) );
 
-		if ( ! empty( $this->assets['css'] ) || ! empty( $this->assets['js'] ) )
-			add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		// Instead of hooking enqueue_assets here unconditionally, scan the posts on the front-end
+		// and only add the wp_enqueue_scripts hook if the shortcode is present.
+		add_filter( 'the_posts', array( $this, 'maybe_add_assets_for_shortcode' ) );
+	}
+
+	/**
+	 * Scan posts returned by the main query and, if any contains the shortcode,
+	 * attach the enqueue_assets() to wp_enqueue_scripts.
+	 *
+	 * This runs early (before wp_enqueue_scripts) and avoids enqueuing assets on pages
+	 * where the shortcode doesn't appear.
+	 *
+	 * @param array|WP_Post[]|null $posts
+	 * @return array|WP_Post[]|null
+	 *
+	 * @since 1.1.0
+	 */
+	public function maybe_add_assets_for_shortcode( $posts )
+	{
+		// Only act on front-end main query; skip admin to be safe.
+		if ( is_admin() || empty( $posts ) )
+			return $posts;
+
+		foreach ( $posts as $post ) :
+			// sometimes objects without post_content might appear; guard as string
+			if ( isset( $post->post_content ) && is_string( $post->post_content ) ) :
+				if ( has_shortcode( $post->post_content, $this->shortcode_tag ) ) :
+					// Hook enqueue once we know the shortcode is present
+					add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+					// nothing else to do
+					break;
+				endif;
+			endif;
+		endforeach;
+
+		return $posts;
 	}
 
 	/**
@@ -106,6 +148,14 @@ abstract class Shortcode
 			(array) $atts,
 			$shortcode_tag
 		);
+
+		// Fallback: if for some reason the posts-scan didn't detect the shortcode
+		// (dynamic insertion, widgets, builders...), ensure assets are enqueued.
+		// We only enqueue once (assets_queued flag).
+		if ( ! $this->assets_queued )
+			// If wp_enqueue_scripts already ran, calling enqueue_assets() here still enqueues assets,
+			// WP will print them if printing hasn't already happened; this is the safe fallback.
+			$this->enqueue_assets();
 
 		// Cache the output
 		if ( $this->cache_ttl > 0 ) :
@@ -129,6 +179,11 @@ abstract class Shortcode
 	 */
 	public function enqueue_assets() : void
 	{
+		// Prevent multiple enqueues from different hooks/calls.
+		if ( $this->assets_queued )
+			return;
+
+		$this->assets_queued = true;
 
 		$css = ( isset( $this->assets['css'] ) ) ? $this->assets['css'] : null;
 		$js = ( isset( $this->assets['js'] ) ) ? $this->assets['js'] : null;
