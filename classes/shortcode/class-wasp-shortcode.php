@@ -1,6 +1,8 @@
 <?php
 namespace WASP\Shortcode;
 
+use WASP\Helpers\Transient;
+
 /**
  * Shortcode
  *
@@ -75,6 +77,13 @@ abstract class Shortcode
 	protected bool $assets_queued = false;
 
 	/**
+	 * Transient
+	 *
+	 * @since 1.1.0
+	 */
+	public $transient;
+
+	/**
 	 * Constructor
 	 *
 	 * @since 1.1.0
@@ -82,6 +91,8 @@ abstract class Shortcode
 	public function __construct()
 	{
 		add_action( 'init', array( $this, 'register_shortcode' ) );
+
+		$this->transient = new Transient;
 	}
 
 	/**
@@ -165,7 +176,7 @@ abstract class Shortcode
 				return $cached;
 
 			$output = $this->render( $atts, $content, $shortcode_tag );
-			set_transient( $cache_key, $output, $this->cache_ttl );
+			$this->transient::set_transient( $cache_key, $output, $this->cache_ttl );
 			return $output;
 		endif;
 
