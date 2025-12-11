@@ -166,7 +166,7 @@ class CreateCustomColumnsCommand extends AbstractGeneratorCommand
         // Final
         $this->io->newLine();
         if ($dryRun) {
-            $this->io->success('✅ Dry-run complete. No files were written.');
+            $this->io->success('🦄 Dry-run complete. No files were written.');
         } else {
             $this->io->success('🎉 Custom Columns generated successfully.');
         }
