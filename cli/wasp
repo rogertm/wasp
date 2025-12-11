@@ -14,7 +14,8 @@ use WaspCli\Command\{
 	CreateAdminSubPageCommand,
 	CreateSettingFieldsCommand,
 	CreateUserMetaCommand,
-	CreateShortcodeCommand
+	CreateShortcodeCommand,
+	CreateCustomColumnsCommand
 };
 
 $app = new Application( 'WASP CLI', '1.0.0' );
@@ -29,4 +30,5 @@ $app->add( new CreateAdminSubPageCommand() );
 $app->add( new CreateSettingFieldsCommand() );
 $app->add( new CreateUserMetaCommand() );
 $app->add( new CreateShortcodeCommand() );
+$app->add( new CreateCustomColumnsCommand() );
 $app->run();

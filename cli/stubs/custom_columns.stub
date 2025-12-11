@@ -1,0 +1,29 @@
+<?php
+namespace {{NAMESPACE_DECL}};
+
+use {{USE_DECL}};
+
+class {{CLASS_NAME}} extends Custom_Columns
+{
+
+	public function __construct() {
+
+		$this->post_type = array();
+
+		$this->columns = array();
+
+		$this->sortable_columns = array();
+
+		parent::__construct();
+	}
+
+	protected function get_column_value( $column, $post )
+	{
+		// Create your logic here...
+		switch ( $column ) :
+			case 'custom-column':
+				// code...
+				break;
+		endswitch;
+	}
+}
