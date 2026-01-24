@@ -45,6 +45,7 @@ class HTML
 	 * @since 1.0.1 				Added $args['default']
 	 * @since 1.0.1 				Added $args['attr']
 	 * @since 1.1.0 				Added $args['html']
+	 * @since 1.1.0 				Added $args['description']
 	 */
 	public static function field( $args, $value )
 	{
@@ -70,6 +71,8 @@ class HTML
 			self::media( $args, $value );
 			self::file( $args, $value );
 			self::nonce( $args );
+			if ( isset( $args['description'] ) && ! empty( $args['description'] ) )
+				echo '<p class="description">'. $args['description'] .'</p>';
 		echo '</div>';
 	}
 
