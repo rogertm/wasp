@@ -153,7 +153,7 @@ class HTML
 
 		$default	= $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
 		$value 		= ( 'button' != $args['type'] ) ? $default : $args['label'];
-		$class 		= ( 'button' != $args['type'] ) ? 'regular-text' : 'button';
+		$class 		= ( 'button' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-secondary';
 
 		$no_label	= array(
 			'button',
@@ -162,7 +162,7 @@ class HTML
 	?>
 
 	<?php if ( ! in_array( $args['type'], $no_label )  ) : ?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
+		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
 	<?php endif ?>
 		<input
 			id="<?php echo $args['meta'] ?>"
@@ -222,10 +222,10 @@ class HTML
 		if ( 'textarea' != $args['type'] )
 			return;
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
+		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
 		<textarea
 			id="<?php echo $args['meta'] ?>"
-			class="regular-text mb-3"
+			class="regular-text form-control mb-3"
 			name="<?php echo $args['meta'] ?>"
 			cols="30"
 			rows="5"
@@ -288,14 +288,14 @@ class HTML
 		Enqueue::file_upload( true );
 		$attach_url = wp_get_attachment_url( $value );
 	?>
-		<p><label for="insert-file-url-<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
+		<p><label for="insert-file-url-<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
 		<div id="file-uploader-<?php echo $args['meta'] ?>" class="wasp-file-uploader">
 			<input id="insert-file-input-<?php echo $args['meta'] ?>" class="insert-file-input mb-3" type="hidden" name="<?php echo $args['meta'] ?>" value="<?php echo $value ?>">
-			<input id="insert-file-url-<?php echo $args['meta'] ?>" class="insert-file-url mb-3" type="url" value="<?php echo $attach_url ?>">
-			<button class="button insert-file-button" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
+			<input id="insert-file-url-<?php echo $args['meta'] ?>" class="insert-file-url mb-3 form-control" type="url" value="<?php echo $attach_url ?>">
+			<button class="button insert-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
 				<?php _e( 'Upload file', 'wasp' ) ?>
 			</button>
-			<button class="button clear-file-button" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
+			<button class="button clear-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
 				<?php _e( 'Clear', 'wasp' ) ?>
 			</button>
 		</div>
@@ -316,16 +316,22 @@ class HTML
 
 		$value = $value ?? ( ( 'checked' == $args['default'] ) ? 1 : null );
 		?>
-			<label>
+			<div class="form-check form-switch">
 				<input
+					id="<?php echo $args['meta'] ?>"
+					class="form-check-input"
 					type="checkbox"
 					name="<?php echo $args['meta'] ?>"
 					value="1"
+					role="switch"
 					<?php checked( $value, 1 ) ?>
 					<?php static::attr( $args['attr'] ) ?>
+					switch
 				>
-				<?php echo $args['label'] ?>
-			</label>
+				<label for="<?php echo $args['meta'] ?>" class="form-check-label">
+					<?php echo $args['label'] ?>
+				</label>
+			</div>
 		<?php
 	}
 
@@ -342,19 +348,25 @@ class HTML
 			return;
 
 		if ( is_array( $args['multiple'] ) ) :
+			$i = 0;
 			foreach ( $args['multiple'] as $k => $v ) :
 		?>
-		<p><label>
+		<div class="form-check">
 			<input
+				id="<?php echo $args['meta'] .'-'. $i ?>"
+				class="form-check-input"
 				type="radio"
 				name="<?php echo $args['meta'] ?>"
 				value="<?php echo $k ?>"
 				<?php checked( $k, $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ) ?>
 				<?php static::attr( $args['attr'] ) ?>
 			>
-			<?php echo $v ?>
-		</label></p>
+			<label for="<?php echo $args['meta'] .'-'. $i ?>" class="form-check-label">
+				<?php echo $v ?>
+			</label>
+		</div>
 		<?php
+				$i++;
 			endforeach;
 		endif;
 	}
@@ -379,9 +391,10 @@ class HTML
 					? $args['meta'] .'[]'
 					: $args['meta'];
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
+		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
 		<select
 			id="<?php echo $args['meta'] ?>"
+			class="form-select"
 			name="<?php echo $name ?>"
 			<?php static::attr( $args['attr'] ) ?>
 		>
