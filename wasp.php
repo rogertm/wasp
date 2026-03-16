@@ -2,9 +2,9 @@
 /**
  * Plugin Name: WASP 🐝
  * Description: Wow! Another starter plugin
- * Plugin URI: https://github.com/themingisprose/wasp
+ * Plugin URI: https://github.com/rogertm/wasp
  * Author: RogerTM
- * Author URI: https://rogertm.com
+ * Author URI: https://github.com/rogertm
  * Version: 1.1.0
  * License: GPL2
  * Text Domain: wasp

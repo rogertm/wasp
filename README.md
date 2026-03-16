@@ -1,6 +1,6 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/rogertm/wasp/badge)](https://www.codefactor.io/repository/github/rogertm/wasp)
 
-# WASP 🐝 &bull; Woew! Another starter plugin
+# WASP 🐝 &bull; Wow! Another starter plugin
 
 ## Introducción
 

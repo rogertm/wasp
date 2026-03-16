@@ -1,0 +1,86 @@
+# Copyright (C) 2026 RogerTM
+# This file is distributed under the GPL2.
+msgid ""
+msgstr ""
+"Project-Id-Version: WASP 🐝 1.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wasp\n"
+"POT-Creation-Date: 2026-03-16T13:01:44-04:00\n"
+"PO-Revision-Date: 2026-03-16 13:52-0400\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.0.1\n"
+"X-Domain: wasp\n"
+
+#. Plugin Name of the plugin
+#: wasp.php
+msgid "WASP 🐝"
+msgstr "WASP 🐝"
+
+#. Plugin URI of the plugin
+#: wasp.php
+msgid "https://github.com/rogertm/wasp"
+msgstr "https://github.com/rogertm/wasp"
+
+#. Description of the plugin
+#: wasp.php
+msgid "Wow! Another starter plugin"
+msgstr "Wow! Another starter plugin"
+
+#. Author of the plugin
+#: wasp.php
+msgid "RogerTM"
+msgstr "RogerTM"
+
+#. Author URI of the plugin
+#: wasp.php
+msgid "https://github.com/rogertm"
+msgstr "https://github.com/rogertm"
+
+#: classes/helpers/class-wasp-enqueue.php:33
+msgid "Select images"
+msgstr "Seleccionar imágenes"
+
+#: classes/helpers/class-wasp-enqueue.php:34
+msgid "Create gallery"
+msgstr "Crear galería"
+
+#: classes/helpers/class-wasp-enqueue.php:52
+msgid "Select file"
+msgstr "Seleccionar archivo"
+
+#: classes/helpers/class-wasp-enqueue.php:53
+msgid "Use this file"
+msgstr "Seleccionar archivo"
+
+#: classes/helpers/class-wasp-html.php:261
+msgid "Remove"
+msgstr "Eliminar"
+
+#: classes/helpers/class-wasp-html.php:270
+msgid "Upload images"
+msgstr "Subir imágenes"
+
+#: classes/helpers/class-wasp-html.php:296
+msgid "Upload file"
+msgstr "Subir archivo"
+
+#: classes/helpers/class-wasp-html.php:299
+msgid "Clear"
+msgstr "Limpiar"
+
+#: classes/helpers/class-wasp-html.php:387
+msgid "No data available"
+msgstr "No hay datos disponibles"
+
+#: classes/helpers/class-wasp-html.php:388
+msgid "&mdash; Select an option &mdash;"
+msgstr "&mdash; Seleccionar una opción &mdash;"
+
+#: classes/setting-fields/class-wasp-setting-fields.php:195
+msgid "Setting Updated"
+msgstr "Configuración Actualizada"
