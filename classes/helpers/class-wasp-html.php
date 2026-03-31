@@ -162,10 +162,20 @@ class HTML
             'submit',
 			'hidden'
 		);
+
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
 	?>
 
 	<?php if ( ! in_array( $args['type'], $no_label )  ) : ?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
+		<p>
+            <label
+                    for="<?php echo $args['meta'] ?>"
+                    class="description form-label"
+            >
+                <?php echo $args['label'] ?>
+                <?php echo $required ?>
+            </label>
+        </p>
 	<?php endif ?>
 		<input
 			id="<?php echo $args['meta'] ?>"
@@ -189,8 +199,18 @@ class HTML
 	{
 		if ( 'content' != $args['type'] )
 			return;
+
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
+		<p>
+            <label
+                    for="<?php echo $args['meta'] ?>"
+                    class="description"
+            >
+                <?php echo $args['label'] ?>
+                <?php echo $required ?>
+            </label>
+        </p>
 	<?php
 		$settings = array(
 			'media_buttons'	=> false,
@@ -224,8 +244,18 @@ class HTML
 	{
 		if ( 'textarea' != $args['type'] )
 			return;
+
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
+		<p>
+            <label
+                    for="<?php echo $args['meta'] ?>"
+                    class="description form-label"
+            >
+                <?php echo $args['label'] ?>
+                <?php echo $required ?>
+            </label>
+        </p>
 		<textarea
 			id="<?php echo $args['meta'] ?>"
 			class="regular-text form-control mb-3"
@@ -288,10 +318,20 @@ class HTML
 		if ( 'file' != $args['type'] )
 			return;
 
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+
 		Enqueue::file_upload( true );
 		$attach_url = wp_get_attachment_url( $value );
 	?>
-		<p><label for="insert-file-url-<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
+		<p>
+            <label
+                    for="insert-file-url-<?php echo $args['meta'] ?>"
+                    class="description form-label"
+            >
+                <?php echo $args['label'] ?>
+                <?php echo $required ?>
+            </label>
+        </p>
 		<div id="file-uploader-<?php echo $args['meta'] ?>" class="wasp-file-uploader">
 			<input id="insert-file-input-<?php echo $args['meta'] ?>" class="insert-file-input mb-3" type="hidden" name="<?php echo $args['meta'] ?>" value="<?php echo $value ?>">
 			<input id="insert-file-url-<?php echo $args['meta'] ?>" class="insert-file-url mb-3 form-control" type="url" value="<?php echo $attach_url ?>">
@@ -317,6 +357,8 @@ class HTML
 		if ( 'checkbox' != $args['type'] )
 			return;
 
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+
 		$value = $value ?? ( ( 'checked' == $args['default'] ) ? 1 : null );
 		?>
 			<div class="form-check form-switch">
@@ -333,6 +375,7 @@ class HTML
 				>
 				<label for="<?php echo $args['meta'] ?>" class="form-check-label">
 					<?php echo $args['label'] ?>
+					<?php echo $required ?>
 				</label>
 			</div>
 		<?php
@@ -386,6 +429,8 @@ class HTML
 		if ( 'select' != $args['type'] )
 			return;
 
+        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+
 		$option = ( ! is_array( $args['multiple'] ) )
 					? __( 'No data available', 'wasp' )
 					: __( '&mdash; Select an option &mdash;', 'wasp' );
@@ -394,7 +439,15 @@ class HTML
 					? $args['meta'] .'[]'
 					: $args['meta'];
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description form-label"><?php echo $args['label'] ?></label></p>
+		<p>
+            <label
+                    for="<?php echo $args['meta'] ?>"
+                    class="description form-label"
+            >
+                <?php echo $args['label'] ?>
+                <?php echo $required ?>
+            </label>
+        </p>
 		<select
 			id="<?php echo $args['meta'] ?>"
 			class="form-select"
