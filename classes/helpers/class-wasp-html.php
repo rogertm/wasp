@@ -22,7 +22,7 @@ class HTML
 	 * 								Supported values: 'button', 'checkbox', 'color', 'content',
 	 * 								'date', 'datetime-local', 'email', 'file', 'hidden', 'html',
 	 * 								'media', 'month', 'nonce' 'number', 'password', 'radio', 'range',
-	 * 								'select', 'tel', 'text', 'textarea', 'time', 'url', 'week'.
+	 * 								'select', 'submit', 'tel', 'text', 'textarea', 'time', 'url', 'week'.
 	 * 		@type array $multiple	Array used to define the values of field type 'radio' or 'select'.
 	 * 								$multiple = array(
 	 * 									'option_1' => 'Label 1',
@@ -142,6 +142,7 @@ class HTML
 			'number',
 			'password',
 			'range',
+            'submit',
 			'tel',
 			'text',
 			'time',
@@ -152,11 +153,13 @@ class HTML
 			return;
 
 		$default	= $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
-		$value 		= ( 'button' != $args['type'] ) ? $default : $args['label'];
-		$class 		= ( 'button' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-secondary';
+        $value 		= ( 'button' != $args['type'] && 'submit' != $args['type'] ) ? $default : $args['label'];
+        $class 		= ( 'button' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-secondary';
+        $class 		= ( 'submit' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-primary';
 
 		$no_label	= array(
 			'button',
+            'submit',
 			'hidden'
 		);
 	?>
