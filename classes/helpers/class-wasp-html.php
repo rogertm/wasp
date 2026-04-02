@@ -54,11 +54,16 @@ class HTML
 			'label'		=> null,
 			'meta'		=> null,
 			'default'	=> null,
+			'multiple'	=> null,
+			'html'		=> null,
+			'description' => null,
 			'attr'		=> null
 		);
 		$args = wp_parse_args( $args, $defaults );
 
-		echo '<div class="wasp-field field-'. $args['type'] .'" style="margin-bottom: .5rem">';
+		$type_class = sanitize_html_class( (string) $args['type'] );
+
+		echo '<div class="wasp-field field-'. esc_attr( $type_class ) .'" style="margin-bottom: .5rem">';
 			self::title( $args );
 			self::paragraph( $args );
 			self::html( $args );
@@ -72,8 +77,125 @@ class HTML
 			self::file( $args, $value );
 			self::nonce( $args );
 			if ( isset( $args['description'] ) && ! empty( $args['description'] ) )
-				echo '<p class="description">'. $args['description'] .'</p>';
+				echo '<p class="description">'. wp_kses_post( $args['description'] ) .'</p>';
 		echo '</div>';
+	}
+
+	/**
+	 * Sanitization by field type.
+	 * @param array $args
+	 * @param mixed $value
+	 * @return mixed
+	 *
+	 * @since 1.1.1
+	 */
+	public static function sanitize_value( $args, $value )
+	{
+		$args = wp_parse_args(
+			$args,
+			array(
+				'type' => 'text',
+			)
+		);
+
+		$type = (string) $args['type'];
+		$value = wp_unslash( $value );
+
+		switch ( $type ) :
+			case 'checkbox':
+				return ( ! empty( $value ) ) ? 1 : 0;
+
+			case 'file':
+				if ( '' === $value || null === $value )
+					return '';
+
+				return absint( $value );
+
+			case 'media':
+				return implode( ',', self::sanitize_attachment_ids( $value ) );
+
+			case 'textarea':
+				return is_scalar( $value ) ? sanitize_textarea_field( (string) $value ) : '';
+
+			case 'content':
+			case 'html':
+				return is_scalar( $value ) ? wp_kses_post( (string) $value ) : '';
+
+			case 'url':
+				return is_scalar( $value ) ? esc_url_raw( (string) $value ) : '';
+
+			case 'email':
+				return is_scalar( $value ) ? sanitize_email( (string) $value ) : '';
+
+			case 'number':
+			case 'range':
+				if ( ! is_scalar( $value ) )
+					return '';
+
+				$value = trim( (string) $value );
+				if ( '' === $value )
+					return '';
+
+				if ( is_numeric( $value ) )
+					return 0 + $value;
+
+				return sanitize_text_field( $value );
+
+			case 'select':
+				if ( is_array( $value ) )
+					return self::sanitize_recursive_text( $value );
+
+				return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : '';
+
+			default:
+				if ( is_array( $value ) )
+					return self::sanitize_recursive_text( $value );
+
+				return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : '';
+		endswitch;
+	}
+
+	/**
+	 * Determine if a sanitized value should be considered empty for persistence.
+	 * @param mixed $value
+	 * @return bool
+	 *
+	 * @since 1.1.1
+	 */
+	public static function is_empty_value( $value )
+	{
+		if ( is_array( $value ) ) :
+			foreach ( $value as $item ) :
+				if ( ! self::is_empty_value( $item ) )
+					return false;
+			endforeach;
+
+			return true;
+		endif;
+
+		return null === $value || '' === $value;
+	}
+
+	/**
+	 * Whether this field should be persisted in db.
+	 * @param array $args
+	 * @return bool
+	 *
+	 * @since 1.1.1
+	 */
+	public static function should_store_field( $args )
+	{
+		$type = isset( $args['type'] ) ? (string) $args['type'] : 'text';
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+
+		if ( '' === $meta )
+			return false;
+
+		return ! in_array(
+			$type,
+			array( 'title', 'paragraph', 'button', 'submit', 'nonce', 'html' ),
+			true
+		);
 	}
 
 	/**
@@ -87,7 +209,7 @@ class HTML
 		if ( 'title' != $args['type'] )
 			return;
 		?>
-			<h3><?php echo $args['label'] ?></h3>
+			<h3><?php echo esc_html( (string) $args['label'] ) ?></h3>
 		<?php
 	}
 
@@ -102,7 +224,7 @@ class HTML
 		if ( 'paragraph' != $args['type'] )
 			return;
 		?>
-			<p><?php echo $args['label'] ?></p>
+			<p><?php echo esc_html( (string) $args['label'] ) ?></p>
 		<?php
 	}
 
@@ -117,8 +239,8 @@ class HTML
 		if ( 'html' != $args['type'] )
 			return;
 
-		if ( $args['html'] )
-			echo $args['html'];
+		if ( ! empty( $args['html'] ) )
+			echo wp_kses_post( $args['html'] );
 	}
 
 	/**
@@ -142,47 +264,53 @@ class HTML
 			'number',
 			'password',
 			'range',
-            'submit',
+			'submit',
 			'tel',
 			'text',
 			'time',
 			'url',
 			'week'
 		);
-		if ( ! in_array( $args['type'], $types ) )
+		if ( ! in_array( $args['type'], $types, true ) )
 			return;
 
-		$default	= $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
-        $value 		= ( 'button' != $args['type'] && 'submit' != $args['type'] ) ? $default : $args['label'];
-        $class 		= ( 'button' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-secondary';
-        $class 		= ( 'submit' != $args['type'] ) ? 'regular-text form-control' : 'button btn btn-primary';
+		$default = $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
+		$label = isset( $args['label'] ) ? (string) $args['label'] : '';
+		$field_value = ( 'button' !== $args['type'] && 'submit' !== $args['type'] ) ? $default : $label;
+		$field_value = is_scalar( $field_value ) ? (string) $field_value : '';
 
-		$no_label	= array(
+		$class = 'regular-text form-control';
+		if ( 'button' === $args['type'] )
+			$class = 'button btn btn-secondary';
+		if ( 'submit' === $args['type'] )
+			$class = 'button btn btn-primary';
+
+		$no_label = array(
 			'button',
-            'submit',
+			'submit',
 			'hidden'
 		);
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
 	?>
 
-	<?php if ( ! in_array( $args['type'], $no_label )  ) : ?>
+	<?php if ( ! in_array( $args['type'], $no_label, true )  ) : ?>
 		<p>
-            <label
-                    for="<?php echo $args['meta'] ?>"
-                    class="description form-label"
-            >
-                <?php echo $args['label'] ?>
-                <?php echo $required ?>
-            </label>
-        </p>
+			<label
+				for="<?php echo esc_attr( $meta ) ?>"
+				class="description form-label"
+			>
+				<?php echo esc_html( $label ) ?>
+				<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
+			</label>
+		</p>
 	<?php endif ?>
 		<input
-			id="<?php echo $args['meta'] ?>"
-			class="<?php echo $class ?>"
-			type="<?php echo $args['type'] ?>"
-			name="<?php echo $args['meta'] ?>"
-			value="<?php echo $value ?>"
+			id="<?php echo esc_attr( $meta ) ?>"
+			class="<?php echo esc_attr( $class ) ?>"
+			type="<?php echo esc_attr( (string) $args['type'] ) ?>"
+			name="<?php echo esc_attr( $meta ) ?>"
+			value="<?php echo esc_attr( $field_value ) ?>"
 			<?php self::attr( $args['attr'] ) ?>
 		>
 	<?php
@@ -200,17 +328,19 @@ class HTML
 		if ( 'content' != $args['type'] )
 			return;
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$editor_value = $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ?? '';
+		$editor_value = is_scalar( $editor_value ) ? (string) $editor_value : '';
 	?>
 		<p>
-            <label
-                    for="<?php echo $args['meta'] ?>"
-                    class="description"
-            >
-                <?php echo $args['label'] ?>
-                <?php echo $required ?>
-            </label>
-        </p>
+			<label
+				for="<?php echo esc_attr( $meta ) ?>"
+				class="description"
+			>
+				<?php echo esc_html( (string) $args['label'] ) ?>
+				<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
+			</label>
+		</p>
 	<?php
 		$settings = array(
 			'media_buttons'	=> false,
@@ -226,11 +356,7 @@ class HTML
 				'toolbar1'				=> 'bold,italic,underline,|,bullist,numlist,|,alignleft,aligncenter,alignright,|,link,unlink,|,undo,redo',
 			),
 		);
-		wp_editor(
-			$value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ?? '',
-			$args['meta'],
-			$settings
-		);
+		wp_editor( $editor_value, $meta, $settings );
 	}
 
 	/**
@@ -245,25 +371,27 @@ class HTML
 		if ( 'textarea' != $args['type'] )
 			return;
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$textarea_value = $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ?? '';
+		$textarea_value = is_scalar( $textarea_value ) ? (string) $textarea_value : '';
 	?>
 		<p>
-            <label
-                    for="<?php echo $args['meta'] ?>"
-                    class="description form-label"
-            >
-                <?php echo $args['label'] ?>
-                <?php echo $required ?>
-            </label>
-        </p>
+			<label
+				for="<?php echo esc_attr( $meta ) ?>"
+				class="description form-label"
+			>
+				<?php echo esc_html( (string) $args['label'] ) ?>
+				<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
+			</label>
+		</p>
 		<textarea
-			id="<?php echo $args['meta'] ?>"
+			id="<?php echo esc_attr( $meta ) ?>"
 			class="regular-text form-control mb-3"
-			name="<?php echo $args['meta'] ?>"
+			name="<?php echo esc_attr( $meta ) ?>"
 			cols="30"
 			rows="5"
 			<?php static::attr( $args['attr'] ) ?>
-		><?php echo $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ?></textarea>
+		><?php echo esc_textarea( $textarea_value ) ?></textarea>
 	<?php
 	}
 
@@ -280,27 +408,30 @@ class HTML
 			return;
 
 		Enqueue::media_upload( true );
-		$thumbnails = ( ! empty( $value ) ) ? array_unique( explode( ',', $value ) ) : null;
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$ids = self::sanitize_attachment_ids( $value );
+		$ids_csv = implode( ',', $ids );
 	?>
-		<p><label for="<?php echo $args['meta'] ?>" class="description"><?php echo $args['label'] ?></label></p>
-		<div id="media-uploader-<?php echo $args['meta'] ?>" class="wasp-media-uploader" data-btn="insert-media-btn-<?php echo $args['meta'] ?>">
-			<div id="insert-media-wrapper-<?php echo $args['meta'] ?>" class="insert-media-wrapper" style="display: flex; justify-content: flex-start;">
+		<p><label for="<?php echo esc_attr( $meta ) ?>" class="description"><?php echo esc_html( (string) $args['label'] ) ?></label></p>
+		<div id="media-uploader-<?php echo esc_attr( $meta ) ?>" class="wasp-media-uploader" data-btn="insert-media-btn-<?php echo esc_attr( $meta ) ?>">
+			<div id="insert-media-wrapper-<?php echo esc_attr( $meta ) ?>" class="insert-media-wrapper" style="display: flex; justify-content: flex-start;">
 			<?php
-			if ( $thumbnails ) :
-				foreach ( $thumbnails as $id ) :
+			if ( ! empty( $ids ) ) :
+				foreach ( $ids as $id ) :
+					$image_url = wp_get_attachment_image_url( $id );
 			?>
-				<div id="thumbnail-<?php echo $args['meta'] .'-'. $id ?>" class="img-wrapper" style="display: flex; flex-direction: column; margin: .5rem">
-					<img src="<?php echo wp_get_attachment_image_url( $id ) ?>">
-					<small class="img-remover" data-remove="thumbnail-<?php echo $args['meta'] .'-'. $id ?>" data-thumbnail-id="<?php echo $id ?>" style="color:#a00; cursor: pointer;"><?php _e( 'Remove', 'wasp' ) ?></small>
+				<div id="thumbnail-<?php echo esc_attr( $meta .'-'. $id ) ?>" class="img-wrapper" style="display: flex; flex-direction: column; margin: .5rem">
+					<img src="<?php echo esc_url( (string) $image_url ) ?>">
+					<small class="img-remover" data-remove="thumbnail-<?php echo esc_attr( $meta .'-'. $id ) ?>" data-thumbnail-id="<?php echo esc_attr( (string) $id ) ?>" style="color:#a00; cursor: pointer;"><?php esc_html_e( 'Remove', 'wasp' ) ?></small>
 				</div>
 			<?php
 				endforeach;
 			endif;
 			?>
 			</div>
-			<input id="insert-media-input-<?php echo $args['meta'] ?>" class="insert-media-input regular-text mb-3" type="hidden" name="<?php echo $args['meta'] ?>" value="<?php echo $value ?>">
-			<button id="insert-media-btn-<?php echo $args['meta'] ?>" class="button insert-media-button" type="button" data-input="insert-media-input-<?php echo $args['meta'] ?>" data-wrapper="insert-media-wrapper-<?php echo $args['meta'] ?>">
-				<?php _e( 'Upload images', 'wasp' ) ?>
+			<input id="insert-media-input-<?php echo esc_attr( $meta ) ?>" class="insert-media-input regular-text mb-3" type="hidden" name="<?php echo esc_attr( $meta ) ?>" value="<?php echo esc_attr( $ids_csv ) ?>">
+			<button id="insert-media-btn-<?php echo esc_attr( $meta ) ?>" class="button insert-media-button" type="button" data-input="insert-media-input-<?php echo esc_attr( $meta ) ?>" data-wrapper="insert-media-wrapper-<?php echo esc_attr( $meta ) ?>">
+				<?php esc_html_e( 'Upload images', 'wasp' ) ?>
 			</button>
 		</div>
 	<?php
@@ -318,28 +449,28 @@ class HTML
 		if ( 'file' != $args['type'] )
 			return;
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
-
 		Enqueue::file_upload( true );
-		$attach_url = wp_get_attachment_url( $value );
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$file_id = absint( $value );
+		$attach_url = $file_id ? wp_get_attachment_url( $file_id ) : '';
 	?>
 		<p>
-            <label
-                    for="insert-file-url-<?php echo $args['meta'] ?>"
-                    class="description form-label"
-            >
-                <?php echo $args['label'] ?>
-                <?php echo $required ?>
-            </label>
-        </p>
-		<div id="file-uploader-<?php echo $args['meta'] ?>" class="wasp-file-uploader">
-			<input id="insert-file-input-<?php echo $args['meta'] ?>" class="insert-file-input mb-3" type="hidden" name="<?php echo $args['meta'] ?>" value="<?php echo $value ?>">
-			<input id="insert-file-url-<?php echo $args['meta'] ?>" class="insert-file-url mb-3 form-control" type="url" value="<?php echo $attach_url ?>">
-			<button class="button insert-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
-				<?php _e( 'Upload file', 'wasp' ) ?>
+			<label
+				for="insert-file-url-<?php echo esc_attr( $meta ) ?>"
+				class="description form-label"
+			>
+				<?php echo esc_html( (string) $args['label'] ) ?>
+				<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
+			</label>
+		</p>
+		<div id="file-uploader-<?php echo esc_attr( $meta ) ?>" class="wasp-file-uploader">
+			<input id="insert-file-input-<?php echo esc_attr( $meta ) ?>" class="insert-file-input mb-3" type="hidden" name="<?php echo esc_attr( $meta ) ?>" value="<?php echo esc_attr( (string) $file_id ) ?>">
+			<input id="insert-file-url-<?php echo esc_attr( $meta ) ?>" class="insert-file-url mb-3 form-control" type="url" value="<?php echo esc_url( (string) $attach_url ) ?>">
+			<button class="button insert-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo esc_attr( $meta ) ?>" data-url="insert-file-url-<?php echo esc_attr( $meta ) ?>">
+				<?php esc_html_e( 'Upload file', 'wasp' ) ?>
 			</button>
-			<button class="button clear-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo $args['meta'] ?>" data-url="insert-file-url-<?php echo $args['meta'] ?>">
-				<?php _e( 'Clear', 'wasp' ) ?>
+			<button class="button clear-file-button btn btn-secondary" type="button" data-input="insert-file-input-<?php echo esc_attr( $meta ) ?>" data-url="insert-file-url-<?php echo esc_attr( $meta ) ?>">
+				<?php esc_html_e( 'Clear', 'wasp' ) ?>
 			</button>
 		</div>
 	<?php
@@ -357,25 +488,24 @@ class HTML
 		if ( 'checkbox' != $args['type'] )
 			return;
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
-
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$label = isset( $args['label'] ) ? (string) $args['label'] : '';
 		$value = $value ?? ( ( 'checked' == $args['default'] ) ? 1 : null );
 		?>
 			<div class="form-check form-switch">
 				<input
-					id="<?php echo $args['meta'] ?>"
+					id="<?php echo esc_attr( $meta ) ?>"
 					class="form-check-input"
 					type="checkbox"
-					name="<?php echo $args['meta'] ?>"
+					name="<?php echo esc_attr( $meta ) ?>"
 					value="1"
 					role="switch"
 					<?php checked( $value, 1 ) ?>
 					<?php static::attr( $args['attr'] ) ?>
-					switch
 				>
-				<label for="<?php echo $args['meta'] ?>" class="form-check-label">
-					<?php echo $args['label'] ?>
-					<?php echo $required ?>
+				<label for="<?php echo esc_attr( $meta ) ?>" class="form-check-label">
+					<?php echo esc_html( $label ) ?>
+					<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
 				</label>
 			</div>
 		<?php
@@ -393,22 +523,26 @@ class HTML
 		if ( 'radio' != $args['type'] )
 			return;
 
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$current = $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
+		$current = is_scalar( $current ) ? (string) $current : '';
+
 		if ( is_array( $args['multiple'] ) ) :
 			$i = 0;
 			foreach ( $args['multiple'] as $k => $v ) :
 		?>
 		<div class="form-check">
 			<input
-				id="<?php echo $args['meta'] .'-'. $i ?>"
+				id="<?php echo esc_attr( $meta .'-'. $i ) ?>"
 				class="form-check-input"
 				type="radio"
-				name="<?php echo $args['meta'] ?>"
-				value="<?php echo $k ?>"
-				<?php checked( $k, $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null ) ) ?>
+				name="<?php echo esc_attr( $meta ) ?>"
+				value="<?php echo esc_attr( (string) $k ) ?>"
+				<?php checked( (string) $k, $current ) ?>
 				<?php static::attr( $args['attr'] ) ?>
 			>
-			<label for="<?php echo $args['meta'] .'-'. $i ?>" class="form-check-label">
-				<?php echo $v ?>
+			<label for="<?php echo esc_attr( $meta .'-'. $i ) ?>" class="form-check-label">
+				<?php echo esc_html( (string) $v ) ?>
 			</label>
 		</div>
 		<?php
@@ -429,42 +563,46 @@ class HTML
 		if ( 'select' != $args['type'] )
 			return;
 
-        $required = ( isset( $args['attr']['required'] ) ) ? '<small class="required">*</small>' : null;
-
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$label = isset( $args['label'] ) ? (string) $args['label'] : '';
 		$option = ( ! is_array( $args['multiple'] ) )
 					? __( 'No data available', 'wasp' )
 					: __( '&mdash; Select an option &mdash;', 'wasp' );
 
 		$name = ( isset( $args['attr']['multiple'] ) )
-					? $args['meta'] .'[]'
-					: $args['meta'];
+					? $meta .'[]'
+					: $meta;
 	?>
 		<p>
-            <label
-                    for="<?php echo $args['meta'] ?>"
-                    class="description form-label"
-            >
-                <?php echo $args['label'] ?>
-                <?php echo $required ?>
-            </label>
-        </p>
+			<label
+				for="<?php echo esc_attr( $meta ) ?>"
+				class="description form-label"
+			>
+				<?php echo esc_html( $label ) ?>
+				<?php if ( self::is_required( $args ) ) : ?><small class="required">*</small><?php endif ?>
+			</label>
+		</p>
 		<select
-			id="<?php echo $args['meta'] ?>"
+			id="<?php echo esc_attr( $meta ) ?>"
 			class="form-select"
-			name="<?php echo $name ?>"
+			name="<?php echo esc_attr( $name ) ?>"
 			<?php static::attr( $args['attr'] ) ?>
 		>
-			<option value=""><?php echo $option ?></option>
+			<option value=""><?php echo wp_kses_post( $option ) ?></option>
 			<?php
 			if ( is_array( $args['multiple'] ) ) :
+				$current = $value ?? ( ( isset( $args['default'] ) ) ? $args['default'] : null );
+				$current_array = is_array( $current ) ? array_map( 'strval', $current ) : null;
+
 				foreach ( $args['multiple'] as $k => $v ) :
-					if ( is_array( $value ) ) :
-						$selected = ( in_array( $k, $value ) ) ? 'selected' : null;
+					if ( is_array( $current_array ) ) :
+						$selected = in_array( (string) $k, $current_array, true ) ? 'selected="selected"' : '';
 					else :
-						$selected = selected( $k, ($value) ? $value : ( ( isset( $args['default'] ) ) ? $args['default'] : null ), false );
+						$current_scalar = is_scalar( $current ) ? (string) $current : '';
+						$selected = selected( (string) $k, $current_scalar, false );
 					endif;
 			?>
-			<option value="<?php echo $k ?>" <?php echo $selected ?>><?php echo $v ?></option>
+			<option value="<?php echo esc_attr( (string) $k ) ?>" <?php echo $selected ?>><?php echo esc_html( (string) $v ) ?></option>
 			<?php
 				endforeach;
 			endif;
@@ -484,13 +622,14 @@ class HTML
 		if ( 'nonce' != $args['type'] )
 			return;
 
-		$value = ( isset( $args['default'] ) ) ? $args['default'] : -1;
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$action = isset( $args['default'] ) ? (string) $args['default'] : '-1';
 	?>
 		<input
-			id="<?php echo $args['meta'] ?>"
+			id="<?php echo esc_attr( $meta ) ?>"
 			type="hidden"
-			name="<?php echo $args['meta'] ?>"
-			value="<?php echo wp_create_nonce( $args['default'] ) ?>"
+			name="<?php echo esc_attr( $meta ) ?>"
+			value="<?php echo esc_attr( wp_create_nonce( $action ) ) ?>"
 		>
 	<?php
 	}
@@ -511,7 +650,96 @@ class HTML
 		unset( $attr['name'] );
 
 		foreach ( $attr as $k => $v ) :
-			echo $k .'="'. $v .'" ';
+			$k = preg_replace( '/[^a-zA-Z0-9_:-]/', '', (string) $k );
+			if ( '' === $k )
+				continue;
+
+			if ( is_bool( $v ) ) :
+				if ( $v )
+					echo esc_attr( $k ) .' ';
+
+				continue;
+			endif;
+
+			if ( is_array( $v ) || is_object( $v ) )
+				continue;
+
+			echo esc_attr( $k ) .'="'. esc_attr( (string) $v ) .'" ';
 		endforeach;
+	}
+
+	/**
+	 * Sanitize nested arrays with sanitize_text_field.
+	 * @param array $value
+	 * @return array
+	 *
+	 * @since 1.1.1
+	 */
+	private static function sanitize_recursive_text( $value )
+	{
+		if ( ! is_array( $value ) )
+			return array();
+
+		$result = array();
+
+		foreach ( $value as $k => $v ) :
+			if ( is_array( $v ) ) :
+				$nested = self::sanitize_recursive_text( $v );
+				if ( ! empty( $nested ) )
+					$result[ $k ] = $nested;
+
+				continue;
+			endif;
+
+			if ( ! is_scalar( $v ) )
+				continue;
+
+			$sanitized = sanitize_text_field( (string) $v );
+			if ( '' === $sanitized )
+				continue;
+
+			$result[ $k ] = $sanitized;
+		endforeach;
+
+		return $result;
+	}
+
+	/**
+	 * Normalize media input (csv or array) to list of attachment IDs.
+	 * @param mixed $value
+	 * @return array<int>
+	 *
+	 * @since 1.1.1
+	 */
+	private static function sanitize_attachment_ids( $value )
+	{
+		if ( is_array( $value ) ) :
+			$raw = $value;
+		elseif ( is_scalar( $value ) ) :
+			$raw = explode( ',', (string) $value );
+		else :
+			$raw = array();
+		endif;
+
+		$ids = array();
+		foreach ( $raw as $id ) :
+			$id = absint( $id );
+			if ( $id > 0 )
+				$ids[] = $id;
+		endforeach;
+
+		return array_values( array_unique( $ids ) );
+	}
+
+	/**
+	 * Whether a field has required attribute.
+	 * @param array $args
+	 * @return bool
+	 *
+	 * @since 1.1.1
+	 */
+	private static function is_required( $args )
+	{
+		return isset( $args['attr'] ) && is_array( $args['attr'] ) && isset( $args['attr']['required'] );
 	}
 }

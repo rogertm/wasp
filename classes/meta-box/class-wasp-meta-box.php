@@ -118,7 +118,10 @@ abstract class Meta_Box implements Fields
 		$fields = $this->fields();
 
 		foreach ( $fields as $key => $data ) :
-			$value = get_post_meta( $post->ID, $data['meta'], true );
+			$value = null;
+			if ( isset( $data['meta'] ) && '' !== (string) $data['meta'] )
+				$value = get_post_meta( $post->ID, $data['meta'], true );
+
 			HTML::field( $data, $value );
 		endforeach;
 	}
@@ -132,7 +135,7 @@ abstract class Meta_Box implements Fields
 	public function save_meta( $post_id )
 	{
 		// Check if the current user is authorized to do this action.
-		if ( ! current_user_can( 'edit_posts' ) )
+		if ( ! current_user_can( 'edit_post', $post_id ) )
 			return;
 
 		// If this is an autosave, our form has not been submitted, so we don't want to do anything.
@@ -141,16 +144,26 @@ abstract class Meta_Box implements Fields
 
 		// Check if the user intended to change this value.
 		if ( ! isset( $_POST[$this->id .'_field'] )
-			|| ! wp_verify_nonce( $_POST[$this->id .'_field'], $this->id .'_attr' ) )
+			|| ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[$this->id .'_field'] ) ), $this->id .'_attr' ) )
 			return;
 
 		$fields = $this->fields();
 
-		foreach ( $fields as $key => $value ) :
-			if ( isset( $_POST[$value['meta']] ) && '' !== $_POST[$value['meta']] ) :
-				update_post_meta( $post_id, $value['meta'], sanitize_text_field( $_POST[$value['meta']] ) );
+		foreach ( $fields as $key => $field ) :
+			if ( ! HTML::should_store_field( $field ) )
+				continue;
+
+			$meta = $field['meta'];
+			if ( ! isset( $_POST[$meta] ) ) :
+				delete_post_meta( $post_id, $meta );
+				continue;
+			endif;
+
+			$sanitized = HTML::sanitize_value( $field, $_POST[$meta] );
+			if ( HTML::is_empty_value( $sanitized ) ) :
+				delete_post_meta( $post_id, $meta );
 			else :
-				delete_post_meta( $post_id, $value['meta'] );
+				update_post_meta( $post_id, $meta, $sanitized );
 			endif;
 		endforeach;
 	}

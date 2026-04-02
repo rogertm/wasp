@@ -52,10 +52,15 @@ abstract class Term_Meta implements Fields
 	 */
 	public function render( $term )
 	{
+		wp_nonce_field(
+			'wasp_term_meta_'. $this->taxonomy,
+			'wasp_term_meta_nonce_'. $this->taxonomy
+		);
+
 		$fields = $this->fields();
 
 		foreach ( $fields as $key => $data ) :
-			$value = ( isset( $term->term_id ) )
+			$value = ( isset( $term->term_id ) && isset( $data['meta'] ) && '' !== (string) $data['meta'] )
 							? get_term_meta( $term->term_id, $data['meta'], true )
 							: null;
 
@@ -72,6 +77,8 @@ abstract class Term_Meta implements Fields
 	 */
 	private function html( $args, $value )
 	{
+		$meta = isset( $args['meta'] ) ? (string) $args['meta'] : '';
+		$label_text = isset( $args['label'] ) ? (string) $args['label'] : '';
 
 		$tr 	= ( $this->taxonomy .'_edit_form_fields' == current_filter() )
 					? '<tr class="form-field term-order-wrap">'
@@ -95,7 +102,7 @@ abstract class Term_Meta implements Fields
 					: null;
 
 		$label 	= ( $this->taxonomy .'_edit_form_fields' == current_filter() )
-					? '<p><label for="'. $args['meta'] .'" class="description">'. $args['label'] .'</label></p>'
+					? '<p><label for="'. esc_attr( $meta ) .'" class="description">'. esc_html( $label_text ) .'</label></p>'
 					: null;
 
 		echo $tr;
@@ -118,13 +125,36 @@ abstract class Term_Meta implements Fields
 	 */
 	public function save_meta( $term_id )
 	{
+		$nonce_key = 'wasp_term_meta_nonce_'. $this->taxonomy;
+		if ( ! isset( $_POST[ $nonce_key ] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST[ $nonce_key ] ) ),
+				'wasp_term_meta_'. $this->taxonomy
+			)
+		)
+			return;
+
+		$taxonomy = get_taxonomy( $this->taxonomy );
+		if ( $taxonomy && isset( $taxonomy->cap->edit_terms ) && ! current_user_can( $taxonomy->cap->edit_terms ) )
+			return;
+
 		$fields = $this->fields();
 
-		foreach ( $fields as $key => $value ) :
-			if ( isset( $_POST[$value['meta']] ) && '' != $_POST[$value['meta']] ) :
-				update_term_meta( $term_id, $value['meta'], $_POST[$value['meta']] );
+		foreach ( $fields as $key => $field ) :
+			if ( ! HTML::should_store_field( $field ) )
+				continue;
+
+			$meta = $field['meta'];
+			if ( ! isset( $_POST[$meta] ) ) :
+				delete_term_meta( $term_id, $meta );
+				continue;
+			endif;
+
+			$sanitized = HTML::sanitize_value( $field, $_POST[$meta] );
+			if ( HTML::is_empty_value( $sanitized ) ) :
+				delete_term_meta( $term_id, $meta );
 			else :
-				delete_term_meta( $term_id, $value['meta'] );
+				update_term_meta( $term_id, $meta, $sanitized );
 			endif;
 		endforeach;
 	}

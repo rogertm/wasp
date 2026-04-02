@@ -136,7 +136,7 @@ abstract class Setting_Fields implements Fields
 	 *
 	 * @since 1.0.0
 	 */
-	public function sanitize_options()
+	public function sanitize_options( $input = array() )
 	{
 		/**
 		 * Filters the Options Input
@@ -182,14 +182,29 @@ abstract class Setting_Fields implements Fields
 	private function validate()
 	{
 		$fields = $this->merged_fields();
+		$input = get_option( $this->option_name, array() );
+		if ( ! is_array( $input ) )
+			$input = array();
 
-		foreach ( $fields as $key => $value ) :
-			if ( isset( $value['meta'] ) )
-				$input[$value['meta']] = ( isset( $_POST[$value['meta']] ) && null !== $_POST[$value['meta']] )
-											? ( is_array( $_POST[$value['meta']] ) )
-												? $_POST[$value['meta']]
-												: stripslashes( trim( $_POST[$value['meta']] ) )
-											: '';
+		foreach ( $fields as $key => $field ) :
+			if ( ! HTML::should_store_field( $field ) )
+				continue;
+
+			$meta = $field['meta'];
+			if ( ! isset( $_POST[$meta] ) ) :
+				$type = isset( $field['type'] ) ? (string) $field['type'] : 'text';
+				if ( 'checkbox' === $type )
+					unset( $input[ $meta ] );
+
+				continue;
+			endif;
+
+			$sanitized = HTML::sanitize_value( $field, $_POST[$meta] );
+			if ( HTML::is_empty_value( $sanitized ) ) :
+				unset( $input[ $meta ] );
+			else :
+				$input[ $meta ] = $sanitized;
+			endif;
 		endforeach;
 
 		add_settings_error( 'wasp-update', 'wasp', __( 'Setting Updated', 'wasp' ), 'success' );

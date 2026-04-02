@@ -32,7 +32,7 @@ abstract class User_Meta implements Fields
 			include_once( ABSPATH .'wp-includes/pluggable.php' );
 
 		$current_user = wp_get_current_user();
-		$user_id = $_GET['user_id'] ?? $current_user->ID;
+		$user_id = ( isset( $current_user->ID ) ) ? (int) $current_user->ID : 0;
 		$this->user_id = $user_id;
 
 		add_action( 'show_user_profile', array( $this, 'render' ) );
@@ -49,14 +49,18 @@ abstract class User_Meta implements Fields
 	 *
 	 * @since 1.0.0
 	 */
-	public function render()
+	public function render( $user = null )
 	{
+		if ( $user instanceof \WP_User )
+			$this->user_id = (int) $user->ID;
+
 		$fields = $this->fields();
+		wp_nonce_field( 'wasp_user_meta_save', 'wasp_user_meta_nonce' );
 	?>
 		<table class="form-table">
 	<?php
 		foreach ( $fields as $key => $data ) :
-			$value = ( isset( $this->user_id ) )
+			$value = ( isset( $this->user_id ) && $this->user_id > 0 && isset( $data['meta'] ) && '' !== (string) $data['meta'] )
 						? get_user_meta( $this->user_id, $data['meta'], true )
 						: null;
 
@@ -78,10 +82,12 @@ abstract class User_Meta implements Fields
 	{
 		$screen = get_current_screen();
 		$value 	= ( 'user' != $screen->id ) ? $value : null;
+		$meta = isset( $data['meta'] ) ? (string) $data['meta'] : '';
+		$label = isset( $data['label'] ) ? (string) $data['label'] : '';
 	?>
 		<tr>
 			<th>
-				<label for="<?php echo $data['meta'] ?>"><?php echo $data['label'] ?></label>
+				<label for="<?php echo esc_attr( $meta ) ?>"><?php echo esc_html( $label ) ?></label>
 			</th>
 			<td>
 				<?php HTML::field( $data, $value ); ?>
@@ -98,13 +104,34 @@ abstract class User_Meta implements Fields
 	 */
 	public function save( $user_id )
 	{
+		if ( ! current_user_can( 'edit_user', $user_id ) )
+			return;
+
+		if ( ! isset( $_POST['wasp_user_meta_nonce'] )
+			|| ! wp_verify_nonce(
+				sanitize_text_field( wp_unslash( $_POST['wasp_user_meta_nonce'] ) ),
+				'wasp_user_meta_save'
+			)
+		)
+			return;
+
 		$fields = $this->fields();
 
-		foreach ( $fields as $key => $value ) :
-			if ( isset( $_POST[$value['meta']] ) && '' != $_POST[$value['meta']] ) :
-				update_user_meta( $user_id, $value['meta'], $_POST[$value['meta']] );
+		foreach ( $fields as $key => $field ) :
+			if ( ! HTML::should_store_field( $field ) )
+				continue;
+
+			$meta = $field['meta'];
+			if ( ! isset( $_POST[$meta] ) ) :
+				delete_user_meta( $user_id, $meta );
+				continue;
+			endif;
+
+			$sanitized = HTML::sanitize_value( $field, $_POST[$meta] );
+			if ( HTML::is_empty_value( $sanitized ) ) :
+				delete_user_meta( $user_id, $meta );
 			else :
-				delete_user_meta( $user_id, $value['meta'] );
+				update_user_meta( $user_id, $meta, $sanitized );
 			endif;
 		endforeach;
 	}
