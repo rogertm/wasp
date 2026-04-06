@@ -53,24 +53,26 @@ class CreateShortcodeCommand extends AbstractGeneratorCommand
         ]);
 
         // Determine plugin base directory and project slug
-        if ($projectArg) {
-            $childDir = realpath($this->baseDir . '/../' . $projectArg);
-            if (!$childDir || !is_dir($childDir)) {
-                $this->io->error("Project not found: $projectArg");
-                return Command::FAILURE;
-            }
-            $pluginBaseDir = $childDir;
-            $projectSlug   = $projectArg;
-        } else {
-            $pluginBaseDir = $this->baseDir;
-            $projectSlug   = $this->slugRoot;
+        try {
+            $context = $this->resolveProjectContext($projectArg);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
         }
+        $pluginBaseDir = $context['plugin_base_dir'];
+        $projectSlug   = $context['project_slug'];
+        $nsDeclPrefix  = $context['namespace_prefix'];
 
         $this->io->text("Plugin base directory: $pluginBaseDir");
 
         // Compute slugs and names
         // shortcode slug (used for filenames): "photo-gallery"
-        $shortcodeSlug = $this->slugify($nameArg);
+        try {
+            $shortcodeSlug = $this->slugify($nameArg);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         // shortcode tag used at runtime (with plugin prefix and underscores): "wasp_photo_gallery"
         $shortcodeTag = $projectSlug . '_' . str_replace('-', '_', $shortcodeSlug);
@@ -80,12 +82,6 @@ class CreateShortcodeCommand extends AbstractGeneratorCommand
         $className    = 'Shortcode_' . $classSuffix; // e.g. Shortcode_Photo_Gallery
 
         // Namespace and use declarations
-        if ($projectArg) {
-            $nsParts      = array_map('ucfirst', explode('-', $projectArg));
-            $nsDeclPrefix = implode('', $nsParts);
-        } else {
-            $nsDeclPrefix = $this->namespaceRoot;
-        }
         $namespaceDecl = $nsDeclPrefix . '\\Shortcode';
         $useDecl       = $this->namespaceRoot . '\\Shortcode\\Shortcode';
 
@@ -196,16 +192,15 @@ class CreateShortcodeCommand extends AbstractGeneratorCommand
         );
 
         if (!$dryRun) {
-            if (file_exists($loaderFile) && is_writable($loaderFile)) {
-                try {
-                    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+            try {
+                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
+                if ($added) {
                     $this->io->success("✔ Instance added to: $loaderFile");
-                } catch (\Throwable $e) {
-                    $this->io->error("Failed to write to $loaderFile: " . $e->getMessage());
-                    return Command::FAILURE;
+                } else {
+                    $this->io->warning("Instance already registered in: $loaderFile");
                 }
-            } else {
-                $this->io->warning("Cannot write to $loaderFile. Check existence and permissions.");
+            } catch (\Throwable $e) {
+                $this->io->warning($e->getMessage());
             }
         } else {
             $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");

@@ -41,7 +41,12 @@ class ProjectNewCommand extends AbstractGeneratorCommand
 
         // 1) Plugin name, slug and directory
         $name      = $input->getArgument('name');
-        $slug      = $this->slugify($name);
+        try {
+            $slug = $this->slugify($name);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
+        }
         $pluginDir = $this->baseDir . '/../' . $slug; // plugins/{slug}
 
         $this->io->section('1) Preparing basic data');

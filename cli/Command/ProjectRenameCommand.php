@@ -1,6 +1,7 @@
 <?php
 namespace WaspCli\Command;
 
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -52,6 +53,10 @@ class ProjectRenameCommand extends Command
         $filesystem = new Filesystem();
 
         $baseDir    = realpath(__DIR__ . '/../../');
+        if ($baseDir === false) {
+            $io->error('Unable to resolve base directory.');
+            return Command::FAILURE;
+        }
         $configPath = $baseDir . '/' . ltrim($input->getOption('config'), '/');
 
         $io->title('🚀 Project Rename');
@@ -82,7 +87,12 @@ class ProjectRenameCommand extends Command
         $io->section('2) Calculating new values');
         $projectName   = $input->getArgument('project_name');
         $newNamespace  = $this->normalizeNamespace($projectName);
-        $newSlug       = $this->slugify($projectName);
+        try {
+            $newSlug = $this->slugify($projectName);
+        } catch (RuntimeException $e) {
+            $io->error($e->getMessage());
+            return Command::FAILURE;
+        }
         $newPrefix     = str_replace('-', '_', $newSlug) . '_';
         $newTextDomain = $newSlug;
 
@@ -116,18 +126,31 @@ class ProjectRenameCommand extends Command
                 ->exclude('backup')
                 ->in($baseDir);
 
-            try {
-                // mirror(): if $backupDir doesn't exist, create it; then copy everything from $baseDir filtered by $iterator
-                $filesystem->mirror($baseDir, $backupDir, $iterator);
-                $io->success("🌟 Backup created at: $backupDir");
-            } catch (IOExceptionInterface $e) {
-                $io->error("Error creating backup at $backupDir: " . $e->getMessage());
-                return Command::FAILURE;
+            if ($dryRun) {
+                $io->text("DRY-RUN ▶ Backup would be created at: $backupDir");
+            } else {
+                try {
+                    // mirror(): if $backupDir doesn't exist, create it; then copy everything from $baseDir filtered by $iterator
+                    $filesystem->mirror($baseDir, $backupDir, $iterator);
+                    $io->success("🌟 Backup created at: $backupDir");
+                } catch (IOExceptionInterface $e) {
+                    $io->error("Error creating backup at $backupDir: " . $e->getMessage());
+                    return Command::FAILURE;
+                }
             }
         }
 
         // 4) Prepare search and replacement arrays
         $io->section('4) Processing files (php, js, css)');
+        $replacementMap = [
+            $oldNamespace . '\\' => $newNamespace . '\\',
+            $oldNamespace => $projectName,
+            $oldPrefix => $newPrefix,
+            "'$oldTextDomain'" => "'$newTextDomain'",
+            "\"$oldTextDomain\"" => "\"$newTextDomain\"",
+            $searchSlug . '-' => $newSlug . '-',
+            $searchSlug => $newSlug,
+        ];
         $searches = [
             $oldNamespace . '\\',
             $oldNamespace,
@@ -135,18 +158,8 @@ class ProjectRenameCommand extends Command
             "'$oldTextDomain'",
             "\"$oldTextDomain\"",
             $searchSlug . '-',
-            $searchSlug
+            $searchSlug,
         ];
-        $replacements = [
-            $newNamespace . '\\',
-            $projectName,
-            $newPrefix,
-            "'$newTextDomain'",
-            "\"$newTextDomain\"",
-            $newSlug . '-',
-            $newSlug
-        ];
-
         $finder = new Finder();
         $finder
             ->files()
@@ -173,13 +186,19 @@ class ProjectRenameCommand extends Command
                 continue;
             }
 
-            $newContent = str_replace($searches, $replacements, $content);
+            $newContent = strtr($content, $replacementMap);
+            if ($newContent === $content) {
+                continue;
+            }
 
             if ($dryRun) {
                 $io->text("DRY-RUN ▶ Modify content: $filePath");
             } else {
                 try {
-                    file_put_contents($filePath, $newContent);
+                    $written = file_put_contents($filePath, $newContent, LOCK_EX);
+                    if ($written === false) {
+                        throw new RuntimeException("Cannot write file: $filePath");
+                    }
                     $io->text("✔ Processed: $filePath");
                 } catch (\Throwable $e) {
                     $io->error("✖ Error writing $filePath: " . $e->getMessage());
@@ -203,8 +222,7 @@ class ProjectRenameCommand extends Command
             foreach ($finderClasses as $file) {
                 $oldName = $file->getFilename();
                 $oldFull = $file->getRealPath();
-                $newName = str_ireplace($searchSlug . '-', $newSlug . '-', $oldName);
-                $newName = str_ireplace($searchSlug, $newSlug, $newName);
+                $newName = $this->replaceSlugInFilename($oldName, $searchSlug, $newSlug);
                 $newFull = $file->getPath() . DIRECTORY_SEPARATOR . $newName;
 
                 if ($oldFull === $newFull) {
@@ -231,13 +249,15 @@ class ProjectRenameCommand extends Command
             ->files()
             ->in($baseDir)
             ->depth('== 0')
-            ->name('*.php')
-            ->name('*' . $searchSlug . '*');
+            ->name('*.php');
 
         foreach ($finderRoot as $file) {
             $oldName = $file->getFilename();
+            if (stripos($oldName, $searchSlug) === false) {
+                continue;
+            }
             $oldFull = $file->getRealPath();
-            $newName = str_ireplace($searchSlug, $newSlug, $oldName);
+            $newName = $this->replaceSlugInFilename($oldName, $searchSlug, $newSlug);
             $newFull = $baseDir . DIRECTORY_SEPARATOR . $newName;
 
             if ($oldFull === $newFull) {
@@ -264,7 +284,7 @@ class ProjectRenameCommand extends Command
             'function_prefix' => $newPrefix,
             'text_domain'     => $newTextDomain,
         ];
-        $newConfigJson = json_encode($newConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $newConfigJson = json_encode($newConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . PHP_EOL;
 
         if (!$dryRun) {
             $configChanged = true;
@@ -275,7 +295,10 @@ class ProjectRenameCommand extends Command
 
             if ($configChanged) {
                 try {
-                    file_put_contents($configPath, $newConfigJson);
+                    $written = file_put_contents($configPath, $newConfigJson, LOCK_EX);
+                    if ($written === false) {
+                        throw new RuntimeException("Cannot write config file: $configPath");
+                    }
                     $io->success("🥳 Config updated: $configPath");
                 } catch (\Throwable $e) {
                     $io->error("✖ Error writing $configPath: " . $e->getMessage());
@@ -302,6 +325,9 @@ class ProjectRenameCommand extends Command
     private function normalizeNamespace(string $text): string
     {
         $trans = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+        if ($trans === false) {
+            $trans = $text;
+        }
         $clean = preg_replace('/[^A-Za-z0-9 ]/', '', $trans);
         $parts = array_filter(explode(' ', $clean), fn($p) => $p !== '');
         $camel = '';
@@ -316,9 +342,41 @@ class ProjectRenameCommand extends Command
      */
     private function slugify(string $text): string
     {
-        $text = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+        $original = $text;
+        $translit = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+        if ($translit !== false) {
+            $text = $translit;
+        }
         $text = preg_replace('/[^\p{L}\p{Nd}]+/u', '-', $text);
         $text = preg_replace('/-+/', '-', $text);
-        return strtolower(trim($text, '-'));
+        $slug = strtolower(trim($text, '-'));
+
+        if ($slug === '') {
+            throw new RuntimeException(sprintf('Cannot generate a valid slug from "%s".', $original));
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Replaces slug only on token boundaries to avoid duplicated cascades.
+     * Example: "class-wasp-post-type.php" -> "class-wasp-child-post-type.php"
+     */
+    private function replaceSlugInFilename(string $name, string $oldSlug, string $newSlug): string
+    {
+        $pattern = '/(^|[-_.])' . preg_quote($oldSlug, '/') . '(?=$|[-_.])/i';
+        $result = preg_replace_callback(
+            $pattern,
+            static function (array $matches) use ($newSlug): string {
+                return $matches[1] . $newSlug;
+            },
+            $name
+        );
+
+        if ($result === null) {
+            return $name;
+        }
+
+        return $result;
     }
 }

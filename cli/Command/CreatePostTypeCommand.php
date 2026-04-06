@@ -64,38 +64,31 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
         ]);
 
         // 3) Determine in which folder the CPT will be created
-        //    If "project" is passed, we assume ../{project} exists (sibling of WASP).
-        if ($projectArg) {
-            $childDir = realpath($this->baseDir . '/../' . $projectArg);
-            if (! $childDir || ! is_dir($childDir)) {
-                $this->io->error("💣 Project not found: $projectArg (expected at {$this->baseDir}/../{$projectArg})");
-                return Command::FAILURE;
-            }
-            $pluginBaseDir = $childDir;
-            $projectSlug = $projectArg;
-        } else {
-            // Use the WASP plugin as the default “project”
-            $pluginBaseDir = $this->baseDir;
-            $projectSlug = $this->slugRoot;
+        try {
+            $context = $this->resolveProjectContext($projectArg);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
         }
+        $pluginBaseDir = $context['plugin_base_dir'];
+        $projectSlug   = $context['project_slug'];
+        $nsDeclPrefix  = $context['namespace_prefix'];
+        $textDomain    = $context['text_domain'];
 
         $this->io->text("CPT root directory: $pluginBaseDir");
 
         // 4) Generate slug and class names
-        $slugCPT = $this->slugify($nameArg);
+        try {
+            $slugCPT = $this->slugify($nameArg);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
+        }
         // Example: "book" → "Book"
         $classSuffix = str_replace('-', '_', ucwords($slugCPT, '-'));
         $className = 'Post_Type_' . $classSuffix; // e.g.: Post_Type_Book
 
         // 5) Compute namespace and use
-        if ($projectArg) {
-            // namespace based on project (e.g. wasp-child → WasPChild\Post_Type)
-            $nsParts = array_map('ucfirst', explode('-', $projectArg));
-            $nsDeclPrefix = implode('', $nsParts);
-        } else {
-            // namespaceRoot comes from config.json (e.g. WASP)
-            $nsDeclPrefix = $this->namespaceRoot;
-        }
         $namespaceDecl = $nsDeclPrefix . '\\Post_Type';
         $useDecl = $this->namespaceRoot . '\\Posts\\Post_Type';
 
@@ -141,7 +134,7 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
             '{{CLASS_NAME}}'     => $className,
             '{{SLUG_FULL}}'      => $projectSlug . '-' . $slugCPT,
             '{{NAME}}'           => $nameArg,
-            '{{TEXT_DOMAIN}}'    => ($projectArg ?: $this->textDomain),
+            '{{TEXT_DOMAIN}}'    => $textDomain,
         ];
 
         $this->io->section('3) Generating class from stub');
@@ -176,16 +169,15 @@ class CreatePostTypeCommand extends AbstractGeneratorCommand
         );
 
         if (! $dryRun) {
-            if (file_exists($loaderFile) && is_writable($loaderFile)) {
-                try {
-                    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+            try {
+                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
+                if ($added) {
                     $this->io->success("✔ Instance added to: $loaderFile");
-                } catch (\Throwable $e) {
-                    $this->io->error("Error writing to $loaderFile: " . $e->getMessage());
-                    return Command::FAILURE;
+                } else {
+                    $this->io->warning("Instance already registered in: $loaderFile");
                 }
-            } else {
-                $this->io->warning("Could not open or write to $loaderFile. Make sure it exists and is writable.");
+            } catch (\Throwable $e) {
+                $this->io->warning($e->getMessage());
             }
         } else {
             $this->io->text("DRY-RUN ▶ Add line to loader: $loaderFile");

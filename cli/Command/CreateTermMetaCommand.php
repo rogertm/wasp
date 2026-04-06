@@ -65,33 +65,30 @@ class CreateTermMetaCommand extends AbstractGeneratorCommand
         ]);
 
         // Determine plugin base directory and slug
-        if ($projectArg) {
-            $childDir = realpath($this->baseDir . '/../' . $projectArg);
-            if (!$childDir || !is_dir($childDir)) {
-                $this->io->error("Project not found: $projectArg");
-                return Command::FAILURE;
-            }
-            $pluginBaseDir = $childDir;
-            $projectSlug   = $projectArg;
-        } else {
-            $pluginBaseDir = $this->baseDir;
-            $projectSlug   = $this->slugRoot;
+        try {
+            $context = $this->resolveProjectContext($projectArg);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
         }
+        $pluginBaseDir = $context['plugin_base_dir'];
+        $projectSlug   = $context['project_slug'];
+        $nsDeclPrefix  = $context['namespace_prefix'];
+        $textDomain    = $context['text_domain'];
 
         $this->io->text("Plugin base directory: $pluginBaseDir");
 
         // Generate slug and class name
-        $slugMeta   = $this->slugify($name);
+        try {
+            $slugMeta = $this->slugify($name);
+        } catch (\Throwable $e) {
+            $this->io->error($e->getMessage());
+            return Command::FAILURE;
+        }
         $classSuffix = str_replace('-', '_', ucwords($slugMeta, '-'));
         $className   = 'Term_Meta_' . $classSuffix;
 
         // Build namespace and use declarations
-        if ($projectArg) {
-            $nsParts      = array_map('ucfirst', explode('-', $projectArg));
-            $nsDeclPrefix = implode('', $nsParts);
-        } else {
-            $nsDeclPrefix = $this->namespaceRoot;
-        }
         $namespaceDecl = $nsDeclPrefix . '\\Terms';
         $useDecl       = $this->namespaceRoot   . '\\Terms\\Term_Meta';
 
@@ -134,7 +131,7 @@ class CreateTermMetaCommand extends AbstractGeneratorCommand
             '{{SLUG_FULL}}'      => $projectSlug . '-' . $slugMeta,
             '{{TAXONOMY}}'       => $taxonomy,
             '{{NAME}}'           => $name,
-            '{{TEXT_DOMAIN}}'    => ($projectArg ?: $this->textDomain),
+            '{{TEXT_DOMAIN}}'    => $textDomain,
             '{{FILTER}}'         => str_replace('-', '_', $projectSlug . '-' . $slugMeta)
         ];
 
@@ -166,16 +163,15 @@ class CreateTermMetaCommand extends AbstractGeneratorCommand
         );
 
         if (!$dryRun) {
-            if (file_exists($loaderFile) && is_writable($loaderFile)) {
-                try {
-                    file_put_contents($loaderFile, $instanceLine, FILE_APPEND);
+            try {
+                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
+                if ($added) {
                     $this->io->success("✔ Instance added to: $loaderFile");
-                } catch (\Throwable $e) {
-                    $this->io->error("Failed to write to $loaderFile: " . $e->getMessage());
-                    return Command::FAILURE;
+                } else {
+                    $this->io->warning("Instance already registered in: $loaderFile");
                 }
-            } else {
-                $this->io->warning("Cannot write to $loaderFile. Check existence and permissions.");
+            } catch (\Throwable $e) {
+                $this->io->warning($e->getMessage());
             }
         } else {
             $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");
