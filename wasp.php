@@ -5,7 +5,7 @@
  * Plugin URI: https://github.com/rogertm/wasp
  * Author: RogerTM
  * Author URI: https://github.com/rogertm
- * Version: 1.1.0
+ * Version: 1.1.1
  * License: GPL2
  * Text Domain: wasp
  * Domain Path: /languages

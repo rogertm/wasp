@@ -139,6 +139,8 @@ php cli/wasp create:post_type "Book"
 - `create:taxonomy` Crea una nueva clase para **Taxonomy** usando stubs y la configuración del proyecto
 - `create:term_meta` Crea un nuevo archivo de clase para **Term Meta** usando la configuración del proyecto
 - `create:user_meta` Crea un nuevo archivo de clase para **User Meta** usando la configuración del proyecto
+- `create:shortcode` Crea un nuevo archivo de clase para **Shortcode** usando la configuración del proyecto
+- `create:custom_columns` Crea un nuevo archivo de clase para **Custom Columns** usando la configuración del proyecto
 
 ## Documentación
 
