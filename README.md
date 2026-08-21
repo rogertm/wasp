@@ -120,6 +120,7 @@ Una vez instaladas las dependencias puedes usar Wasp Cli desde la línea de coma
 
 ```bash
 php cli/wasp create:post_type "Book"
+php cli/wasp create:post_type "Book" --project=wasp-child
 ```
 
 ### Lista de comandos

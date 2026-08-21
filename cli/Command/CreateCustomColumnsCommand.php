@@ -1,171 +1,30 @@
 <?php
+
+declare(strict_types=1);
+
 namespace WaspCli\Command;
 
-use RuntimeException;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
+use WaspCli\Generator\CreateSpec;
 
-class CreateCustomColumnsCommand extends AbstractGeneratorCommand
+#[AsCommand(
+    name: 'create:custom_columns',
+    description: 'Creates a new Custom Columns class file using project config'
+)]
+final class CreateCustomColumnsCommand extends AbstractCreateCommand
 {
-    protected static $defaultName = 'create:custom_columns';
-
-    protected function configure(): void
+    protected function spec(): CreateSpec
     {
-        $this
-            ->setDescription('Creates a new Custom Columns class file using project config')
-            ->addArgument('name', InputArgument::REQUIRED, 'Custom columns name (e.g., Product Columns)')
-            ->addArgument('project', InputArgument::OPTIONAL, 'Project slug where this class should be created (e.g., wasp-child). Defaults to WASP.')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Simulate creation without writing files.');
-    }
-
-    protected function execute(InputInterface $input, OutputInterface $output): int
-    {
-        // Initialize IO and Filesystem (keeps consistency with other commands)
-        $this->io = new SymfonyStyle($input, $output);
-        $this->filesystem = new \Symfony\Component\Filesystem\Filesystem();
-
-        $this->io->title('🧩  Create Custom Columns');
-
-        // Load base config from AbstractGeneratorCommand
-        try {
-            parent::initialize($input, $output);
-        } catch (\Throwable $e) {
-            $this->io->error('Failed to load config: ' . $e->getMessage());
-            return Command::FAILURE;
-        }
-
-        $dryRun    = (bool)$input->getOption('dry-run');
-        $nameArg   = $input->getArgument('name');
-        $projectArg = $input->getArgument('project');
-
-        $this->io->section('1) Initial data');
-        $this->io->text([
-            "Custom Columns name: " . $nameArg,
-            "Project (optional):  " . ($projectArg ?: 'WASP (default)'),
-            "Dry-run:             " . ($dryRun ? 'yes' : 'no'),
-        ]);
-
-        // Determine plugin base dir and project slug
-        try {
-            $context = $this->resolveProjectContext($projectArg);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $pluginBaseDir = $context['plugin_base_dir'];
-        $projectSlug   = $context['project_slug'];
-        $nsDeclPrefix  = $context['namespace_prefix'];
-
-        $this->io->text("Plugin base directory: $pluginBaseDir");
-
-        // Compute slug and class name
-        try {
-            $slug = $this->slugify($nameArg); // e.g. product-columns
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $classSuffix = str_replace('-', '_', ucwords($slug, '-')); // Product_Columns
-        $className   = 'Custom_Columns_' . $classSuffix; // Custom_Columns_Product_Columns
-
-        // Namespace prefix
-
-        $namespaceDecl = $nsDeclPrefix . '\\Custom_Columns';
-        $useDecl       = $this->namespaceRoot . '\\Custom_Columns\\Custom_Columns';
-
-        $this->io->section('2) Class configuration');
-        $this->io->text([
-            "Class name:         $className",
-            "Namespace:          $namespaceDecl",
-            "Use (extends):      $useDecl",
-        ]);
-
-        // Prepare target directory
-        $targetDir = $pluginBaseDir . '/classes/custom-columns';
-        $this->io->section('3) Preparing directory');
-        if (!$dryRun) {
-            try {
-                $this->filesystem->mkdir($targetDir, 0755);
-                $this->io->text("✔ Directory ready: $targetDir");
-            } catch (IOExceptionInterface $e) {
-                $this->io->error("Failed to create directory $targetDir: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ mkdir $targetDir");
-        }
-
-        // Define file name and check existence
-        $fileName     = "class-{$projectSlug}-custom-columns-{$slug}.php";
-        $fullFilePath = $targetDir . '/' . $fileName;
-
-        if (file_exists($fullFilePath)) {
-            $this->io->error("File already exists: $fullFilePath");
-            return Command::FAILURE;
-        }
-
-        // Prepare replacements for stub
-        $replacements = [
-            '{{NAMESPACE_DECL}}' => $namespaceDecl,
-            '{{USE_DECL}}'       => $useDecl,
-            '{{CLASS_NAME}}'     => $className,
-        ];
-
-        $this->io->section('4) Generating class from stub');
-        if (!$dryRun) {
-            try {
-                $created = $this->createFileFromStub(
-                    'custom_columns',
-                    $targetDir,
-                    $fileName,
-                    $replacements
-                );
-                $this->io->success("✔ Class created at: $created");
-            } catch (\Throwable $e) {
-                $this->io->error("Failed to generate class: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ createFileFromStub(custom-columns → $fullFilePath)");
-        }
-
-        // Append instantiation to inc/classes.php
-        $this->io->section('5) Registering in inc/classes.php');
-        $loaderFile = $pluginBaseDir . '/inc/classes.php';
-        $instanceLine = sprintf(
-            "new %s\\Custom_Columns\\%s;\n",
-            $nsDeclPrefix,
-            $className
+        return new CreateSpec(
+            title: 'Create Custom Columns',
+            stub: 'custom_columns',
+            targetSubdir: 'classes/custom-columns',
+            fileInfix: 'custom-columns',
+            classPrefix: 'Custom_Columns_',
+            namespaceSuffix: 'Custom_Columns',
+            parentClass: 'Custom_Columns\\Custom_Columns',
+            successLabel: 'Custom Columns',
+            nameArgumentDescription: 'Custom columns name (e.g., Product Columns)',
         );
-
-        if (!$dryRun) {
-            try {
-                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
-                if ($added) {
-                    $this->io->success("✔ Instance added to: $loaderFile");
-                } else {
-                    $this->io->warning("Instance already registered in: $loaderFile");
-                }
-            } catch (\Throwable $e) {
-                $this->io->warning($e->getMessage());
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");
-        }
-
-        // Final
-        $this->io->newLine();
-        if ($dryRun) {
-            $this->io->success('🦄 Dry-run complete. No files were written.');
-        } else {
-            $this->io->success('🎉 Custom Columns generated successfully.');
-        }
-
-        return Command::SUCCESS;
     }
 }

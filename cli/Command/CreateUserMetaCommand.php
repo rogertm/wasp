@@ -1,183 +1,38 @@
 <?php
+
+declare(strict_types=1);
+
 namespace WaspCli\Command;
 
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
+use WaspCli\Generator\CreateContext;
+use WaspCli\Generator\CreateSpec;
 
-class CreateUserMetaCommand extends AbstractGeneratorCommand
+#[AsCommand(
+    name: 'create:user_meta',
+    description: 'Creates a new User Meta class file using project config'
+)]
+final class CreateUserMetaCommand extends AbstractCreateCommand
 {
-    protected static $defaultName = 'create:user_meta';
-
-    protected function configure(): void
+    protected function spec(): CreateSpec
     {
-        $this
-            ->setDescription('Creates a new User Meta class file using project config')
-            ->addArgument('name', InputArgument::REQUIRED, 'User Meta name (e.g., My Custom Fields)')
-            ->addArgument(
-                'project',
-                InputArgument::OPTIONAL,
-                'Project slug where this User Meta should be created (e.g., wasp-child). Defaults to WASP.'
-            )
-            ->addOption(
-                'dry-run',
-                null,
-                InputOption::VALUE_NONE,
-                'Simulate creation without writing any files.'
-            );
+        return new CreateSpec(
+            title: 'Create User Meta',
+            stub: 'user_meta',
+            targetSubdir: 'classes/user-meta',
+            fileInfix: 'user-meta',
+            classPrefix: 'User_Meta_',
+            namespaceSuffix: 'Users',
+            parentClass: 'Users\\User_Meta',
+            successLabel: 'User Meta',
+            nameArgumentDescription: 'User Meta name (e.g., My Custom Fields)',
+        );
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function extraReplacements(CreateContext $context): array
     {
-        // Initialize SymfonyStyle and Filesystem
-        $this->io = new SymfonyStyle($input, $output);
-        $this->filesystem = new \Symfony\Component\Filesystem\Filesystem();
-        $this->io->title('👤 Create User Meta');
-
-        // Load base configuration
-        try {
-            parent::initialize($input, $output);
-        } catch (\Throwable $e) {
-            $this->io->error('Failed to load config: ' . $e->getMessage());
-            return Command::FAILURE;
-        }
-
-        $dryRun = (bool)$input->getOption('dry-run');
-        if ($dryRun) {
-            $this->io->warning('⚡ DRY-RUN mode: no files will be created.');
-        }
-
-        // Read arguments
-        $name       = $input->getArgument('name');
-        $projectArg = $input->getArgument('project');
-
-        $this->io->section('1) Initial data');
-        $this->io->text([
-            "User Meta Name:     $name",
-            "Project (optional): " . ($projectArg ?: 'WASP (default)'),
-        ]);
-
-        // Determine plugin base directory and slug
-        try {
-            $context = $this->resolveProjectContext($projectArg);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $pluginBaseDir = $context['plugin_base_dir'];
-        $projectSlug   = $context['project_slug'];
-        $nsDeclPrefix  = $context['namespace_prefix'];
-
-        $this->io->text("Plugin base directory: $pluginBaseDir");
-
-        // Generate slug and class name
-        try {
-            $slugMeta = $this->slugify($name);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $classSuffix = str_replace('-', '_', ucwords($slugMeta, '-'));
-        $className   = 'User_Meta_' . $classSuffix;
-
-        // Build namespace and use declaration
-        $namespaceDecl = $nsDeclPrefix . '\\Users';
-        $useDecl       = $this->namespaceRoot   . '\\Users\\User_Meta';
-
-        $this->io->section('2) Class configuration');
-        $this->io->text([
-            "Slug meta:          $slugMeta",
-            "Class name:         $className",
-            "Namespace:          $namespaceDecl",
-            "Extends (use):      $useDecl",
-        ]);
-
-        // Prepare target directory
-        $targetDir = $pluginBaseDir . '/classes/user-meta';
-        $this->io->section('3) Preparing directory');
-        if (!$dryRun) {
-            try {
-                $this->filesystem->mkdir($targetDir, 0755);
-                $this->io->text("✔ Directory ready: $targetDir");
-            } catch (IOExceptionInterface $e) {
-                $this->io->error("Failed to create directory $targetDir: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ mkdir $targetDir");
-        }
-
-        // Define file path
-        $fileName     = "class-{$projectSlug}-user-meta-{$slugMeta}.php";
-        $fullFilePath = $targetDir . '/' . $fileName;
-        if (file_exists($fullFilePath)) {
-            $this->io->error("File already exists: $fullFilePath");
-            return Command::FAILURE;
-        }
-
-        // Prepare stub replacements
-        $replacements = [
-            '{{NAMESPACE_DECL}}' => $namespaceDecl,
-            '{{USE_DECL}}'       => $useDecl,
-            '{{CLASS_NAME}}'     => $className,
-            '{{SLUG_FULL}}'      => $projectSlug . '-' . $slugMeta,
-            '{{FILTER}}'         => str_replace('-', '_', $projectSlug . '-' . $slugMeta)
+        return [
+            '{{FILTER}}' => $this->namer->filterKey($context->projectSlug . '-' . $context->slug),
         ];
-
-        $this->io->section('4) Generating class from stub');
-        if (!$dryRun) {
-            try {
-                $created = $this->createFileFromStub(
-                    'user_meta',
-                    $targetDir,
-                    $fileName,
-                    $replacements
-                );
-                $this->io->success("✔ User Meta class created at: $created");
-            } catch (\Throwable $e) {
-                $this->io->error("Failed to generate User Meta: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ createFileFromStub(user_meta → $fullFilePath)");
-        }
-
-        // Append instantiation to inc/classes.php
-        $this->io->section('5) Registering in inc/classes.php');
-        $loaderFile   = $pluginBaseDir . '/inc/classes.php';
-        $instanceLine = sprintf(
-            "new %s\\Users\\%s;\n",
-            $nsDeclPrefix,
-            $className
-        );
-
-        if (!$dryRun) {
-            try {
-                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
-                if ($added) {
-                    $this->io->success("✔ Instance added to: $loaderFile");
-                } else {
-                    $this->io->warning("Instance already registered in: $loaderFile");
-                }
-            } catch (\Throwable $e) {
-                $this->io->warning($e->getMessage());
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");
-        }
-
-        // Final success
-        $this->io->newLine();
-        if ($dryRun) {
-            $this->io->success('🦄 Dry-run complete. No files were written.');
-        } else {
-            $this->io->success('🎉 User Meta generated successfully.');
-        }
-
-        return Command::SUCCESS;
     }
 }

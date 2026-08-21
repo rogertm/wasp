@@ -1,195 +1,56 @@
 <?php
+
+declare(strict_types=1);
+
 namespace WaspCli\Command;
 
-use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use WaspCli\Generator\CreateContext;
+use WaspCli\Generator\CreateSpec;
 
-class CreateAdminSubPageCommand extends AbstractGeneratorCommand
+#[AsCommand(
+    name: 'create:admin_subpage',
+    description: 'Creates a new Admin Subpage class file using project config'
+)]
+final class CreateAdminSubPageCommand extends AbstractCreateCommand
 {
-    protected static $defaultName = 'create:admin_subpage';
-
-    protected function configure(): void
+    protected function spec(): CreateSpec
     {
-        $this
-            ->setDescription('Creates a new Admin Subpage class file using project config')
-            ->addArgument('name', InputArgument::REQUIRED, 'Subpage name (e.g., My Plugin Subpage)')
-            ->addArgument('parent_slug', InputArgument::REQUIRED, 'Parent menu slug (e.g., wasp-dashboard-setting)')
-            ->addArgument(
-                'project',
-                InputArgument::OPTIONAL,
-                'Project slug where this subpage should be created (e.g., wasp-child). Defaults to WASP.'
-            )
-            ->addOption(
-                'dry-run',
-                null,
-                InputOption::VALUE_NONE,
-                'Simulate creation without writing any files.'
-            );
+        return new CreateSpec(
+            title: 'Create Admin Subpage',
+            stub: 'admin_subpage',
+            targetSubdir: 'classes/admin-page',
+            fileInfix: 'admin-page',
+            classPrefix: 'Admin_Page_',
+            namespaceSuffix: 'Admin',
+            parentClass: 'Admin\\Admin_Sub_Menu_Page',
+            successLabel: 'Admin Subpage',
+            nameArgumentDescription: 'Subpage name (e.g., My Plugin Subpage)',
+        );
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function configureExtraArguments(): void
     {
-        // Initialize SymfonyStyle and Filesystem
-        $this->io = new SymfonyStyle($input, $output);
-        $this->filesystem = new \Symfony\Component\Filesystem\Filesystem();
-        $this->io->title('📑 Create Admin Subpage');
+        $this->addArgument('parent_slug', InputArgument::REQUIRED, 'Parent menu slug (e.g., wasp-dashboard-setting)');
+    }
 
-        // Load base configuration
-        try {
-            parent::initialize($input, $output);
-        } catch (\Throwable $e) {
-            $this->io->error('Failed to load config: ' . $e->getMessage());
-            return Command::FAILURE;
-        }
+    protected function extraInitialLines(CreateContext $context): array
+    {
+        return ['Parent slug: ' . (string) $context->input->getArgument('parent_slug')];
+    }
 
-        $dryRun = (bool)$input->getOption('dry-run');
-        if ($dryRun) {
-            $this->io->warning('⚡ DRY-RUN mode: no files will be created.');
-        }
-
-        // Read arguments
-        $name        = $input->getArgument('name');
-        $parentSlug  = $input->getArgument('parent_slug');
-        $projectArg  = $input->getArgument('project');
-
-        $this->io->section('1) Initial data');
-        $this->io->text([
-            "Subpage Name:       $name",
-            "Parent Slug:        $parentSlug",
-            "Project (optional): " . ($projectArg ?: 'WASP (default)'),
-        ]);
-
-        // Determine plugin base directory and slug
-        try {
-            $context = $this->resolveProjectContext($projectArg);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $pluginBaseDir = $context['plugin_base_dir'];
-        $projectSlug   = $context['project_slug'];
-        $nsDeclPrefix  = $context['namespace_prefix'];
-        $textDomain    = $context['text_domain'];
-
-        $this->io->text("Plugin base directory: $pluginBaseDir");
-
-        // Generate slug and class name
-        try {
-            $slugPage = $this->slugify($name);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $classSuffix = str_replace('-', '_', ucwords($slugPage, '-'));
-        $className   = 'Admin_Page_' . $classSuffix;
-
-        // Build namespace and use declaration
-        $namespaceDecl = $nsDeclPrefix . '\\Admin';
-        $useDecl       = $this->namespaceRoot   . '\\Admin\\Admin_Sub_Menu_Page';
-
-        $this->io->section('2) Class configuration');
-        $this->io->text([
-            "Slug page:          $slugPage",
-            "Class name:         $className",
-            "Namespace:          $namespaceDecl",
-            "Extends (use):      $useDecl",
-        ]);
-
-        // Prepare target directory
-        $targetDir = $pluginBaseDir . '/classes/admin-page';
-        $this->io->section('3) Preparing directory');
-        if (!$dryRun) {
-            try {
-                $this->filesystem->mkdir($targetDir, 0755);
-                $this->io->text("✔ Directory ready: $targetDir");
-            } catch (IOExceptionInterface $e) {
-                $this->io->error("Failed to create directory $targetDir: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ mkdir $targetDir");
-        }
-
-        // Define file path
-        $pageSlug = $projectSlug . '-' . $slugPage . '-subsetting';
-        $fileName = "class-{$projectSlug}-admin-page-{$slugPage}.php";
-        $fullFilePath = $targetDir . '/' . $fileName;
-        if (file_exists($fullFilePath)) {
-            $this->io->error("File already exists: $fullFilePath");
-            return Command::FAILURE;
-        }
-
-        // Prepare stub replacements
-        $replacements = [
-            '{{NAMESPACE_DECL}}'  => $namespaceDecl,
-            '{{USE_DECL}}'        => $useDecl,
-            '{{CLASS_NAME}}'      => $className,
-            '{{PARENT_SLUG}}'     => $parentSlug,
-            '{{PAGE_TITLE}}'      => $name . ' Admin Page',
-            '{{MENU_TITLE}}'      => $name,
-            '{{PAGE_HEADING}}'    => $name . ' Submenu Dashboard',
-            '{{CAPABILITY}}'      => 'manage_options',
-            '{{MENU_SLUG}}'       => $pageSlug,
-            '{{OPTION_GROUP}}'    => $projectSlug . '_subsetting',
-            '{{OPTION_NAME}}'     => $projectSlug . '_options',
-            '{{TEXT_DOMAIN}}'     => $textDomain,
+    protected function extraReplacements(CreateContext $context): array
+    {
+        return [
+            '{{PARENT_SLUG}}' => (string) $context->input->getArgument('parent_slug'),
+            '{{PAGE_TITLE}}' => $context->name . ' Admin Page',
+            '{{MENU_TITLE}}' => $context->name,
+            '{{PAGE_HEADING}}' => $context->name . ' Submenu Dashboard',
+            '{{CAPABILITY}}' => 'manage_options',
+            '{{MENU_SLUG}}' => $context->projectSlug . '-' . $context->slug . '-subsetting',
+            '{{OPTION_GROUP}}' => $context->projectSlug . '_subsetting',
+            '{{OPTION_NAME}}' => $context->projectSlug . '_options',
         ];
-
-        $this->io->section('4) Generating class from stub');
-        if (!$dryRun) {
-            try {
-                $created = $this->createFileFromStub(
-                    'admin_subpage',
-                    $targetDir,
-                    $fileName,
-                    $replacements
-                );
-                $this->io->success("✔ Admin Subpage class created at: $created");
-            } catch (\Throwable $e) {
-                $this->io->error("Failed to generate Admin Subpage: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ createFileFromStub(admin_subpage → $fullFilePath)");
-        }
-
-        // Append instantiation to inc/classes.php
-        $this->io->section('5) Registering in inc/classes.php');
-        $loaderFile   = $pluginBaseDir . '/inc/classes.php';
-        $instanceLine = sprintf(
-            "new %s\\Admin\\%s;\n",
-            $nsDeclPrefix,
-            $className
-        );
-
-        if (!$dryRun) {
-            try {
-                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
-                if ($added) {
-                    $this->io->success("✔ Instance added to: $loaderFile");
-                } else {
-                    $this->io->warning("Instance already registered in: $loaderFile");
-                }
-            } catch (\Throwable $e) {
-                $this->io->warning($e->getMessage());
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");
-        }
-
-        // Final success
-        $this->io->newLine();
-        if ($dryRun) {
-            $this->io->success('🦄 Dry-run complete. No files were written.');
-        } else {
-            $this->io->success('🎉 Admin Subpage generated successfully.');
-        }
-
-        return Command::SUCCESS;
     }
 }

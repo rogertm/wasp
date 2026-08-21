@@ -52,10 +52,10 @@ _wasp_command_options() {
       echo "--dry-run"
       ;;
     create:post_type|create:taxonomy|create:meta_box|create:term_meta|create:admin_page|create:admin_subpage|create:user_meta|create:shortcode|create:custom_columns)
-      echo "--dry-run"
+      echo "--dry-run --project"
       ;;
     create:setting_fields)
-      echo "--dry-run --subpage"
+      echo "--dry-run --subpage --project"
       ;;
     *)
       echo ""

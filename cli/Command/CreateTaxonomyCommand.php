@@ -1,188 +1,49 @@
 <?php
+
+declare(strict_types=1);
+
 namespace WaspCli\Command;
 
-use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use WaspCli\Generator\CreateContext;
+use WaspCli\Generator\CreateSpec;
 
-class CreateTaxonomyCommand extends AbstractGeneratorCommand
+#[AsCommand(
+    name: 'create:taxonomy',
+    description: 'Creates a new Taxonomy class using stubs and the project configuration'
+)]
+final class CreateTaxonomyCommand extends AbstractCreateCommand
 {
-    protected static $defaultName = 'create:taxonomy';
-
-    protected function configure(): void
+    protected function spec(): CreateSpec
     {
-        $this
-            ->setDescription('Creates a new Taxonomy class using stubs and the project configuration')
-            ->addArgument('name', InputArgument::REQUIRED, 'Name of the Taxonomy (e.g.: Genre)')
-            ->addArgument('object_type', InputArgument::REQUIRED, 'Object type associated (e.g.: wasp-book)')
-            ->addArgument(
-                'project',
-                InputArgument::OPTIONAL,
-                'Project slug where the taxonomy will be created (e.g.: wasp-child). If omitted, uses WASP.'
-            )
-            ->addOption(
-                'dry-run',
-                null,
-                InputOption::VALUE_NONE,
-                'Simulates creation without writing files or folders.'
-            );
+        return new CreateSpec(
+            title: 'Taxonomy Creation',
+            stub: 'taxonomy',
+            targetSubdir: 'classes/taxonomy',
+            fileInfix: 'taxonomy',
+            classPrefix: 'Taxonomy_',
+            namespaceSuffix: 'Taxonomy',
+            parentClass: 'Taxonomy\\Taxonomy',
+            successLabel: 'Taxonomy',
+            nameArgumentDescription: 'Name of the Taxonomy (e.g.: Genre)',
+        );
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function configureExtraArguments(): void
     {
-        // 1) Prepare IO and filesystem
-        $this->io = new SymfonyStyle($input, $output);
-        $this->filesystem = new \Symfony\Component\Filesystem\Filesystem();
-        $this->io->title('🏷️  Taxonomy Creation');
+        $this->addArgument('object_type', InputArgument::REQUIRED, 'Object type associated (e.g.: wasp-book)');
+    }
 
-        // 2) Load base configuration
-        try {
-            parent::initialize($input, $output);
-        } catch (\Throwable $e) {
-            $this->io->error('Error loading configuration: ' . $e->getMessage());
-            return Command::FAILURE;
-        }
+    protected function extraInitialLines(CreateContext $context): array
+    {
+        return ['Object type: ' . (string) $context->input->getArgument('object_type')];
+    }
 
-        $dryRun = (bool) $input->getOption('dry-run');
-        if ($dryRun) {
-            $this->io->warning('⚡ DRY-RUN mode: no files will be created.');
-        }
-
-        // 3) Read arguments
-        $name       = $input->getArgument('name');
-        $objectType = $input->getArgument('object_type');
-        $projectArg = $input->getArgument('project');
-
-        $this->io->section('1) Initial data');
-        $this->io->text([
-            "Taxonomy name:      $name",
-            "Object type:        $objectType",
-            "Project (optional): " . ($projectArg ?: 'WASP (default)'),
-        ]);
-
-        // 4) Determine plugin base directory
-        try {
-            $context = $this->resolveProjectContext($projectArg);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $pluginBaseDir = $context['plugin_base_dir'];
-        $projectSlug   = $context['project_slug'];
-        $nsDeclPrefix  = $context['namespace_prefix'];
-        $textDomain    = $context['text_domain'];
-
-        $this->io->text("Destination folder: $pluginBaseDir");
-
-        // 5) Compute slug and class names
-        try {
-            $slugTax = $this->slugify($name);
-        } catch (\Throwable $e) {
-            $this->io->error($e->getMessage());
-            return Command::FAILURE;
-        }
-        $classSuffix = str_replace('-', '_', ucwords($slugTax, '-'));
-        $className   = 'Taxonomy_' . $classSuffix; // Taxonomy_Genre
-
-        // 6) Namespace and use
-        $namespaceDecl = $nsDeclPrefix . '\\Taxonomy';
-        $useDecl       = $this->namespaceRoot . '\\Taxonomy\\Taxonomy';
-
-        $this->io->section('2) Class configuration');
-        $this->io->text([
-            "Taxonomy slug:      $slugTax",
-            "Class name:         $className",
-            "Declare namespace:  $namespaceDecl",
-            "Extends from (use): $useDecl",
-        ]);
-
-        // 7) Create folder classes/taxonomy
-        $targetDir = $pluginBaseDir . '/classes/taxonomy';
-        $this->io->section('3) Creating taxonomy folder');
-        if (! $dryRun) {
-            try {
-                $this->filesystem->mkdir($targetDir, 0755);
-                $this->io->text("✔ Folder exists/created: $targetDir");
-            } catch (IOExceptionInterface $e) {
-                $this->io->error("Error mkdir $targetDir: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ mkdir $targetDir");
-        }
-
-        // 8) Prepare stub
-        $fileName     = "class-{$projectSlug}-taxonomy-{$slugTax}.php";
-        $fullFilePath = $targetDir . '/' . $fileName;
-        if (file_exists($fullFilePath)) {
-            $this->io->error("Already exists: $fullFilePath");
-            return Command::FAILURE;
-        }
-
-        $replacements = [
-            '{{NAMESPACE_DECL}}' => $namespaceDecl,
-            '{{USE_DECL}}'       => $useDecl,
-            '{{CLASS_NAME}}'     => $className,
-            '{{SLUG_FULL}}'      => $projectSlug . '-' . $slugTax,
-            '{{OBJECT_TYPE}}'    => $objectType,
-            '{{NAME}}'           => $name,
-            '{{TEXT_DOMAIN}}'    => $textDomain,
+    protected function extraReplacements(CreateContext $context): array
+    {
+        return [
+            '{{OBJECT_TYPE}}' => (string) $context->input->getArgument('object_type'),
         ];
-
-        $this->io->section('4) Generating class from stub');
-        if (! $dryRun) {
-            try {
-                $created = $this->createFileFromStub(
-                    'taxonomy',
-                    $targetDir,
-                    $fileName,
-                    $replacements
-                );
-                $this->io->success("✔ Taxonomy created at: $created");
-            } catch (\Throwable $e) {
-                $this->io->error("Error creating taxonomy: " . $e->getMessage());
-                return Command::FAILURE;
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ createFileFromStub(taxonomy → $fullFilePath)");
-        }
-
-        // 9) Add instance in inc/classes.php
-        $this->io->section('5) Registering in inc/classes.php');
-        $loaderFile   = $pluginBaseDir . '/inc/classes.php';
-        $instanceLine = sprintf(
-            "new %s\\Taxonomy\\%s;\n",
-            $nsDeclPrefix,
-            $className
-        );
-
-        if (! $dryRun) {
-            try {
-                $added = $this->appendLineToLoader($loaderFile, $instanceLine);
-                if ($added) {
-                    $this->io->success("✔ Instance added to: $loaderFile");
-                } else {
-                    $this->io->warning("Instance already registered in: $loaderFile");
-                }
-            } catch (\Throwable $e) {
-                $this->io->warning($e->getMessage());
-            }
-        } else {
-            $this->io->text("DRY-RUN ▶ append to $loaderFile: $instanceLine");
-        }
-
-        // 10) Finish
-        $this->io->newLine();
-        if ($dryRun) {
-            $this->io->success('🦄 DRY-RUN completed. No files were created.');
-        } else {
-            $this->io->success('🎉 Taxonomy successfully generated.');
-        }
-
-        return Command::SUCCESS;
     }
 }

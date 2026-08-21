@@ -1,34 +1,17 @@
 #!/usr/bin/env php
 <?php
-require __DIR__ . '/../vendor/autoload.php';
 
-use Symfony\Component\Console\Application;
-use WaspCli\Command\{
-	ProjectRenameCommand,
-	ProjectNewCommand,
-	CreatePostTypeCommand,
-	CreateTaxonomyCommand,
-	CreateMetaBoxCommand,
-	CreateTermMetaCommand,
-	CreateAdminPageCommand,
-	CreateAdminSubPageCommand,
-	CreateSettingFieldsCommand,
-	CreateUserMetaCommand,
-	CreateShortcodeCommand,
-	CreateCustomColumnsCommand
-};
+declare(strict_types=1);
 
-$app = new Application( 'WASP CLI', '1.0.0' );
-$app->add( new ProjectRenameCommand() );
-$app->add( new ProjectNewCommand() );
-$app->add( new CreatePostTypeCommand() );
-$app->add( new CreateTaxonomyCommand() );
-$app->add( new CreateMetaBoxCommand() );
-$app->add( new CreateTermMetaCommand() );
-$app->add( new CreateAdminPageCommand() );
-$app->add( new CreateAdminSubPageCommand() );
-$app->add( new CreateSettingFieldsCommand() );
-$app->add( new CreateUserMetaCommand() );
-$app->add( new CreateShortcodeCommand() );
-$app->add( new CreateCustomColumnsCommand() );
-$app->run();
+$autoload = __DIR__ . '/../vendor/autoload.php';
+if (! is_file($autoload)) {
+    fwrite(STDERR, "WASP CLI: run composer install in the plugin root first.\n");
+    exit(1);
+}
+
+require $autoload;
+
+use WaspCli\Application;
+
+$application = new Application(__DIR__);
+$application->run();

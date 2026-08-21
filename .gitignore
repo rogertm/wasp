@@ -159,6 +159,7 @@ GitHub.sublime-settings
 
 # WASP CLI
 backup
+.phpunit.cache/
 
 # Ignore node dependency directories
 node_modules/
