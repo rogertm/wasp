@@ -16,6 +16,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateSettingFieldsCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate a Setting Fields class.
+     * @return CreateSpec Stub, paths, naming and labels for setting fields
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(
@@ -32,6 +38,12 @@ final class CreateSettingFieldsCommand extends AbstractCreateCommand
         );
     }
 
+    /**
+     * Adds the settings page slug argument and the subpage flag option.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configureExtraArguments(): void
     {
         $this
@@ -39,6 +51,13 @@ final class CreateSettingFieldsCommand extends AbstractCreateCommand
             ->addOption('subpage', null, InputOption::VALUE_NONE, 'Flag to indicate that fields belong to a subpage.');
     }
 
+    /**
+     * Shows the settings page slug and subpage flag in the initial-data output.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return string[] Display lines for page slug and subpage flag
+     *
+     * @since 1.0.0
+     */
     protected function extraInitialLines(CreateContext $context): array
     {
         return [
@@ -47,6 +66,13 @@ final class CreateSettingFieldsCommand extends AbstractCreateCommand
         ];
     }
 
+    /**
+     * Supplies section, field and option placeholders for the setting fields stub.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map for the setting fields class
+     *
+     * @since 1.0.0
+     */
     protected function extraReplacements(CreateContext $context): array
     {
         $subPrefix = $context->input->getOption('subpage') ? 'sub' : '';

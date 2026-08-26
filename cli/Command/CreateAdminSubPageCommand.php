@@ -15,6 +15,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateAdminSubPageCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate an Admin Subpage class.
+     * @return CreateSpec Stub, paths, naming and labels for admin subpages
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(
@@ -30,16 +36,36 @@ final class CreateAdminSubPageCommand extends AbstractCreateCommand
         );
     }
 
+    /**
+     * Adds the required parent menu slug argument.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configureExtraArguments(): void
     {
         $this->addArgument('parent_slug', InputArgument::REQUIRED, 'Parent menu slug (e.g., wasp-dashboard-setting)');
     }
 
+    /**
+     * Shows the parent menu slug in the initial-data output.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return string[] Display line with the parent slug
+     *
+     * @since 1.0.0
+     */
     protected function extraInitialLines(CreateContext $context): array
     {
         return ['Parent slug: ' . (string) $context->input->getArgument('parent_slug')];
     }
 
+    /**
+     * Supplies parent slug, menu and option placeholders for the subpage stub.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map for the admin subpage class
+     *
+     * @since 1.0.0
+     */
     protected function extraReplacements(CreateContext $context): array
     {
         return [

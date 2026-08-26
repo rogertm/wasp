@@ -15,8 +15,20 @@ use WaspCli\Generator\ExtraFile;
 
 abstract class AbstractCreateCommand extends AbstractGeneratorCommand
 {
+    /**
+     * Returns the generation specification for this create command.
+     * @return CreateSpec Stub, paths, naming and labels used to generate the class
+     *
+     * @since 1.0.0
+     */
     abstract protected function spec(): CreateSpec;
 
+    /**
+     * Registers the name argument plus shared project and dry-run options.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configure(): void
     {
         $spec = $this->spec();
@@ -39,12 +51,22 @@ abstract class AbstractCreateCommand extends AbstractGeneratorCommand
         $this->configureExtraArguments();
     }
 
+    /**
+     * Adds command-specific arguments and options after the shared ones.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configureExtraArguments(): void
     {
     }
 
     /**
-     * @return array<string, string>
+     * Extra stub placeholders merged into the main class replacements.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map, empty by default
+     *
+     * @since 1.0.0
      */
     protected function extraReplacements(CreateContext $context): array
     {
@@ -52,7 +74,11 @@ abstract class AbstractCreateCommand extends AbstractGeneratorCommand
     }
 
     /**
-     * @return ExtraFile[]
+     * Extra files to generate after the main class file.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return ExtraFile[] Additional stub files, empty by default
+     *
+     * @since 1.0.0
      */
     protected function extraFiles(CreateContext $context): array
     {
@@ -60,13 +86,25 @@ abstract class AbstractCreateCommand extends AbstractGeneratorCommand
     }
 
     /**
-     * @return string[]
+     * Extra lines shown in the initial-data section of the command output.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return string[] Display lines, empty by default
+     *
+     * @since 1.0.0
      */
     protected function extraInitialLines(CreateContext $context): array
     {
         return [];
     }
 
+    /**
+     * Generates the class file, optional extra files, and registers the instance in the loader.
+     * @param InputInterface $input Console input
+     * @param OutputInterface $output Console output
+     * @return int Command::SUCCESS or Command::FAILURE
+     *
+     * @since 1.0.0
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $spec = $this->spec();

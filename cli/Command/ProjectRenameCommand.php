@@ -23,6 +23,12 @@ final class ProjectRenameCommand extends AbstractGeneratorCommand
 {
     private string $requestedConfigPath = 'cli/config.json';
 
+    /**
+     * Registers the project name argument plus dry-run, backup and config options.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configure(): void
     {
         $this
@@ -52,6 +58,14 @@ final class ProjectRenameCommand extends AbstractGeneratorCommand
             );
     }
 
+    /**
+     * Captures the --config path before the parent loads project configuration.
+     * @param InputInterface $input Console input
+     * @param OutputInterface $output Console output
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function initialize(InputInterface $input, OutputInterface $output): void
     {
         $configOption = $input->getOption('config');
@@ -62,6 +76,12 @@ final class ProjectRenameCommand extends AbstractGeneratorCommand
         parent::initialize($input, $output);
     }
 
+    /**
+     * Resolves the configuration file path from --config, relative to the plugin root.
+     * @return string Absolute path to the JSON config file
+     *
+     * @since 1.0.0
+     */
     protected function configPath(): string
     {
         $path = $this->requestedConfigPath;
@@ -72,11 +92,25 @@ final class ProjectRenameCommand extends AbstractGeneratorCommand
         return $this->baseDir . '/' . ltrim($path, '/');
     }
 
+    /**
+     * Allows rename to run against default values when config.json is missing.
+     * @return bool True so a missing config file does not abort the command
+     *
+     * @since 1.0.0
+     */
     protected function allowsMissingConfig(): bool
     {
         return true;
     }
 
+    /**
+     * Renames namespaces, slugs, prefixes, files and config.json for this plugin.
+     * @param InputInterface $input Console input
+     * @param OutputInterface $output Console output
+     * @return int Command::SUCCESS or Command::FAILURE
+     *
+     * @since 1.0.0
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $dryRun = (bool) $input->getOption('dry-run');

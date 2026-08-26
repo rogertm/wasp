@@ -14,6 +14,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateAdminPageCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate an Admin Page class.
+     * @return CreateSpec Stub, paths, naming and labels for admin pages
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(
@@ -29,6 +35,13 @@ final class CreateAdminPageCommand extends AbstractCreateCommand
         );
     }
 
+    /**
+     * Supplies menu, capability and option placeholders for the admin page stub.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map for the admin page class
+     *
+     * @since 1.0.0
+     */
     protected function extraReplacements(CreateContext $context): array
     {
         return [

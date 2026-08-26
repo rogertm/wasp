@@ -13,6 +13,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateCustomColumnsCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate a Custom Columns class.
+     * @return CreateSpec Stub, paths, naming and labels for custom columns
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(

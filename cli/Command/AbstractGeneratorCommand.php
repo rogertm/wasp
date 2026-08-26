@@ -33,6 +33,14 @@ abstract class AbstractGeneratorCommand extends Command
 
     protected LoaderRegistrar $loaderRegistrar;
 
+    /**
+     * Resolves plugin paths, loads project config and prepares shared helpers.
+     * @param InputInterface $input Console input
+     * @param OutputInterface $output Console output
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function initialize(InputInterface $input, OutputInterface $output): void
     {
         parent::initialize($input, $output);
@@ -56,16 +64,35 @@ abstract class AbstractGeneratorCommand extends Command
         $this->config = ProjectConfig::fromFile($this->configPath(), $this->allowsMissingConfig());
     }
 
+    /**
+     * Returns the path to the JSON project configuration file.
+     * @return string Absolute path to cli/config.json by default
+     *
+     * @since 1.0.0
+     */
     protected function configPath(): string
     {
         return $this->baseDir . '/cli/config.json';
     }
 
+    /**
+     * Whether a missing config file should fall back to defaults instead of failing.
+     * @return bool False by default
+     *
+     * @since 1.0.0
+     */
     protected function allowsMissingConfig(): bool
     {
         return false;
     }
 
+    /**
+     * Instantiates the file generator and loader registrar for this run.
+     * @param bool $dryRun When true, writers do not persist changes
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function bootWriters(bool $dryRun): void
     {
         $this->fileGenerator = new FileGenerator(
@@ -77,8 +104,12 @@ abstract class AbstractGeneratorCommand extends Command
     }
 
     /**
-     * Prefix $text with $emoji only when the output is decorated (--ansi).
-     * `--no-ansi` and CommandTester (undecorated) hide emojis.
+     * Prefixes text with an emoji only when the output is decorated.
+     * @param string $emoji Emoji shown when ANSI decoration is enabled
+     * @param string $text Title or section text
+     * @return string Decorated or plain text
+     *
+     * @since 1.0.0
      */
     protected function decorate(string $emoji, string $text): string
     {
@@ -90,12 +121,11 @@ abstract class AbstractGeneratorCommand extends Command
     }
 
     /**
-     * @return array{
-     *     plugin_base_dir:string,
-     *     project_slug:string,
-     *     namespace_prefix:string,
-     *     text_domain:string
-     * }
+     * Resolves the target plugin directory, slug, namespace and text domain.
+     * @param string|null $projectArg Optional child-plugin slug; null uses this plugin
+     * @return array{plugin_base_dir:string,project_slug:string,namespace_prefix:string,text_domain:string} Paths and naming for the target plugin
+     *
+     * @since 1.0.0
      */
     protected function resolveProjectContext(?string $projectArg): array
     {

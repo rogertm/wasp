@@ -13,6 +13,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreatePostTypeCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate a Custom Post Type class.
+     * @return CreateSpec Stub, paths, naming and labels for post types
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(

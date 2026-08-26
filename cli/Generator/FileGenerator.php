@@ -9,6 +9,15 @@ use Symfony\Component\Filesystem\Filesystem;
 
 final class FileGenerator
 {
+    /**
+     * Creates a generator bound to a stubs directory and dry-run flag.
+     * @param Filesystem $filesystem Symfony filesystem helper
+     * @param string $stubsDir Absolute path to the CLI stubs directory
+     * @param bool $dryRun When true, directories and files are not written
+     * @return void
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly Filesystem $filesystem,
         private readonly string $stubsDir,
@@ -16,11 +25,24 @@ final class FileGenerator
     ) {
     }
 
+    /**
+     * Reports whether this generator is in dry-run mode.
+     * @return bool True when no files should be written
+     *
+     * @since 1.0.0
+     */
     public function isDryRun(): bool
     {
         return $this->dryRun;
     }
 
+    /**
+     * Creates a directory unless it already exists or dry-run is enabled.
+     * @param string $directory Absolute path to create
+     * @return void
+     *
+     * @since 1.0.0
+     */
     public function mkdir(string $directory): void
     {
         if ($this->dryRun || is_dir($directory)) {
@@ -31,7 +53,14 @@ final class FileGenerator
     }
 
     /**
-     * @param array<string, string> $replacements
+     * Renders a stub and writes it to disk unless dry-run is enabled.
+     * @param string $stubName Stub basename without .stub
+     * @param string $destinationDir Directory that will contain the generated file
+     * @param string $fileName Destination filename
+     * @param array<string, string> $replacements Placeholder map applied to the stub
+     * @return string Absolute path of the file that was or would be created
+     *
+     * @since 1.0.0
      */
     public function writeFromStub(
         string $stubName,
@@ -62,7 +91,12 @@ final class FileGenerator
     }
 
     /**
-     * @param array<string, string> $replacements
+     * Loads a stub file and applies placeholder replacements.
+     * @param string $stubName Stub basename without .stub
+     * @param array<string, string> $replacements Placeholder map applied to the stub
+     * @return string Rendered file contents
+     *
+     * @since 1.0.0
      */
     public function renderStub(string $stubName, array $replacements): string
     {

@@ -19,6 +19,12 @@ use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 )]
 final class ProjectNewCommand extends AbstractGeneratorCommand
 {
+    /**
+     * Registers the plugin name argument and the dry-run option.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configure(): void
     {
         $this
@@ -31,6 +37,14 @@ final class ProjectNewCommand extends AbstractGeneratorCommand
             );
     }
 
+    /**
+     * Creates a child plugin directory structure and stub files inheriting from WASP.
+     * @param InputInterface $input Console input
+     * @param OutputInterface $output Console output
+     * @return int Command::SUCCESS or Command::FAILURE
+     *
+     * @since 1.0.0
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $dryRun = (bool) $input->getOption('dry-run');

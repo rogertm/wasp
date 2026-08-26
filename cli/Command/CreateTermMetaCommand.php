@@ -15,6 +15,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateTermMetaCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate a Term Meta class.
+     * @return CreateSpec Stub, paths, naming and labels for term meta
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(
@@ -30,16 +36,36 @@ final class CreateTermMetaCommand extends AbstractCreateCommand
         );
     }
 
+    /**
+     * Adds the required taxonomy slug argument associated with the term meta.
+     * @return void
+     *
+     * @since 1.0.0
+     */
     protected function configureExtraArguments(): void
     {
         $this->addArgument('taxonomy', InputArgument::REQUIRED, 'The taxonomy slug to associate with (e.g., wasp-genre)');
     }
 
+    /**
+     * Shows the associated taxonomy slug in the initial-data output.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return string[] Display line with the taxonomy slug
+     *
+     * @since 1.0.0
+     */
     protected function extraInitialLines(CreateContext $context): array
     {
         return ['Taxonomy slug: ' . (string) $context->input->getArgument('taxonomy')];
     }
 
+    /**
+     * Supplies taxonomy and filter placeholders for the term meta stub.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map for the term meta class
+     *
+     * @since 1.0.0
+     */
     protected function extraReplacements(CreateContext $context): array
     {
         $slugFull = $context->projectSlug . '-' . $context->slug;

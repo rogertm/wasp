@@ -8,13 +8,25 @@ use RuntimeException;
 
 final class LoaderRegistrar
 {
+    /**
+     * Creates a registrar that appends class instantiations to a loader file.
+     * @param bool $dryRun When true, the loader file is not modified
+     * @return void
+     *
+     * @since 1.0.0
+     */
     public function __construct(
         private readonly bool $dryRun,
     ) {
     }
 
     /**
-     * @return bool|null True when appended, false when already present, null on dry-run.
+     * Appends a line to the loader file when it is not already present.
+     * @param string $loaderFile Absolute path to inc/classes.php
+     * @param string $line Line to append, typically a new ClassName instantiation
+     * @return bool|null True when appended, false when already present, null on dry-run
+     *
+     * @since 1.0.0
      */
     public function append(string $loaderFile, string $line): ?bool
     {

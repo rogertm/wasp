@@ -8,6 +8,13 @@ use RuntimeException;
 
 final class PhpNamer
 {
+    /**
+     * Converts free-form text into a lowercase slug separated by dashes.
+     * @param string $text Source text to normalize
+     * @return string Non-empty slug
+     *
+     * @since 1.0.0
+     */
     public function slugify(string $text): string
     {
         $original = $text;
@@ -27,11 +34,25 @@ final class PhpNamer
         return $slug;
     }
 
+    /**
+     * Builds a PHP class-name suffix from a slug, using underscores between words.
+     * @param string $slug Dash-separated slug
+     * @return string Class suffix such as Photo_Gallery
+     *
+     * @since 1.0.0
+     */
     public function classSuffixFromSlug(string $slug): string
     {
         return str_replace('-', '_', ucwords($slug, '-'));
     }
 
+    /**
+     * Derives a PHP namespace identifier from a project slug.
+     * @param string $slug Dash-separated project slug
+     * @return string PascalCase namespace, prefixed with Project when it would start with a digit
+     *
+     * @since 1.0.0
+     */
     public function namespaceFromSlug(string $slug): string
     {
         $parts = explode('-', $slug);
@@ -55,6 +76,13 @@ final class PhpNamer
         return $namespace;
     }
 
+    /**
+     * Derives a PHP namespace from a human-readable project name.
+     * @param string $text Project display name
+     * @return string PascalCase namespace, or WASP when the name yields nothing
+     *
+     * @since 1.0.0
+     */
     public function namespaceFromProjectName(string $text): string
     {
         $trans = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
@@ -73,16 +101,39 @@ final class PhpNamer
         return $camel !== '' ? $camel : 'WASP';
     }
 
+    /**
+     * Builds a function prefix from a slug, ending with an underscore.
+     * @param string $slug Dash-separated slug
+     * @return string Prefix such as wasp_child_
+     *
+     * @since 1.0.0
+     */
     public function functionPrefixFromSlug(string $slug): string
     {
         return str_replace('-', '_', $slug) . '_';
     }
 
+    /**
+     * Converts dashes to underscores for WordPress filter or option keys.
+     * @param string $value Slug or compound identifier
+     * @return string Underscore-separated key
+     *
+     * @since 1.0.0
+     */
     public function filterKey(string $value): string
     {
         return str_replace('-', '_', $value);
     }
 
+    /**
+     * Replaces a slug token in a filename while keeping surrounding separators.
+     * @param string $name Original filename
+     * @param string $oldSlug Slug to replace
+     * @param string $newSlug Replacement slug
+     * @return string Filename with the slug swapped when a bounded match is found
+     *
+     * @since 1.0.0
+     */
     public function replaceSlugInFilename(string $name, string $oldSlug, string $newSlug): string
     {
         $pattern = '/(^|[-_.])' . preg_quote($oldSlug, '/') . '(?=$|[-_.])/i';

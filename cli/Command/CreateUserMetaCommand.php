@@ -14,6 +14,12 @@ use WaspCli\Generator\CreateSpec;
 )]
 final class CreateUserMetaCommand extends AbstractCreateCommand
 {
+    /**
+     * Returns the specification used to generate a User Meta class.
+     * @return CreateSpec Stub, paths, naming and labels for user meta
+     *
+     * @since 1.0.0
+     */
     protected function spec(): CreateSpec
     {
         return new CreateSpec(
@@ -29,6 +35,13 @@ final class CreateUserMetaCommand extends AbstractCreateCommand
         );
     }
 
+    /**
+     * Supplies the filter key placeholder for the user meta stub.
+     * @param CreateContext $context Resolved naming and project data for this run
+     * @return array<string, string> Placeholder map for the user meta class
+     *
+     * @since 1.0.0
+     */
     protected function extraReplacements(CreateContext $context): array
     {
         return [

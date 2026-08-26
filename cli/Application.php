@@ -11,12 +11,26 @@ use Symfony\Component\Finder\Finder;
 
 final class Application extends BaseApplication
 {
+    /**
+     * Builds the WASP CLI application and registers command classes.
+     * @param string $cliDir Absolute path to the CLI root directory
+     * @return void
+     *
+     * @since 1.0.0
+     */
     public function __construct(string $cliDir)
     {
         parent::__construct('WASP CLI', '1.0.0');
         $this->registerCommands($cliDir . '/Command');
     }
 
+    /**
+     * Discovers and registers concrete Symfony Command classes from a directory.
+     * @param string $commandDir Directory that contains *Command.php files
+     * @return void
+     *
+     * @since 1.0.0
+     */
     private function registerCommands(string $commandDir): void
     {
         $finder = (new Finder())
