@@ -1,6 +1,6 @@
 {
 	"name": "wasp/wasp-cli",
-	"description": "WASP cli tool",
+	"description": "WASP CLI tool",
 	"require": {
 		"php": ">=8.1",
 		"symfony/console": "^6.4",
@@ -17,7 +17,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"WaspCli\\Tests\\": "tests/"
+			"WaspCli\\Tests\\": "cli/tests/"
 		}
 	},
 	"bin": ["cli/wasp"],

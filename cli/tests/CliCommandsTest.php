@@ -115,6 +115,6 @@ final class CliCommandsTest extends TestCase
 
     private function application(): Application
     {
-        return new Application(dirname(__DIR__) . '/cli');
+        return new Application(dirname(__DIR__));
     }
 }
